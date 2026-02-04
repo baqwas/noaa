@@ -4,30 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b27444be-ebd4-47db-9af3-131b82b9d125" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/noaa.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/gibs/gibs_fetcher.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/gibs/manage_gibs.sh" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/goes/main.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/goes/retrieve_goes.sh" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/goes/retrieve_goes16_east.log" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/goes/retrieve_goes16_east.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/goes/retrieve_goes18_west.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/swpc/README.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/swpc/compile_weekly.sh" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/swpc/config.toml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/swpc/crontab_entry.txt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/swpc/process_timelapse.sh" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/swpc/space_fetcher.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/swpc/space_status.py" afterDir="false" />
-    </list>
+    <list default="true" id="b27444be-ebd4-47db-9af3-131b82b9d125" name="Changes" comment="First commit" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -63,21 +40,22 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ASKED_ADD_EXTERNAL_FILES&quot;: &quot;true&quot;,
-    &quot;Python.goes_current.executor&quot;: &quot;Run&quot;,
-    &quot;Python.main.executor&quot;: &quot;Run&quot;,
-    &quot;Python.retrieve_latest.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;SHELLCHECK.PATH&quot;: &quot;/home/reza/.local/share/JetBrains/PyCharm2025.3/Shell Script/shellcheck&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/home/reza/PycharmProjects/noaa/goes_current.py&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ASKED_ADD_EXTERNAL_FILES": "true",
+    "Python.goes_current.executor": "Run",
+    "Python.main.executor": "Run",
+    "Python.retrieve_latest.executor": "Run",
+    "RunOnceActivity.MCP Project settings loaded": "true",
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "SHELLCHECK.PATH": "/home/reza/.local/share/JetBrains/PyCharm2025.3/Shell Script/shellcheck",
+    "git-widget-placeholder": "master",
+    "last_opened_file_path": "/home/reza/PycharmProjects/noaa/goes_current.py"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/goes" />
@@ -124,6 +102,15 @@
       <option name="presentableId" value="Default" />
       <updated>1703958949007</updated>
     </task>
+    <task id="LOCAL-00001" summary="First commit">
+      <option name="closed" value="true" />
+      <created>1770238911036</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1770238911037</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -139,6 +126,8 @@
   </component>
   <component name="VcsManagerConfiguration">
     <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
+    <MESSAGE value="First commit" />
+    <option name="LAST_COMMIT_MESSAGE" value="First commit" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
