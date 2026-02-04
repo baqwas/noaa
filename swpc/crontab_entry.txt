@@ -1,0 +1,15 @@
+# -----------------------------------------------------------------------------
+# Space Weather Automation Crontab
+# -----------------------------------------------------------------------------
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+MYAPP=/home/reza/PycharmProjects/noaa/swpc
+MAILTO=reza@parkcircus.org
+
+# 1. Download Aurora and Solar images every 30 minutes
+# Runs at :00 and :30 of every hour
+0,30 * * * * cd /home/reza/PycharmProjects/noaa/swpc && /usr/bin/python3 space_fetcher.py >> /home/reza/PycharmProjects/noaa/swpc/logs/cron_python.log 2>&1
+
+# 2. Compile weekly timelapse, archive, and cleanup
+# Runs every Sunday at 00:05 AM to avoid race conditions with the midnight fetch
+5 0 * * 0 /bin/bash /home/reza/PycharmProjects/noaa/swpc/compile_weekly.sh >> /home/reza/PycharmProjects/noaa/swpc/logs/cron_bash.log 2>&1

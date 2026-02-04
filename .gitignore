@@ -1,0 +1,16 @@
+# Ignore sensitive configuration files
+config.toml
+.toml/
+
+# Ignore all log files
+logs/*.log
+logs/*.gz
+
+# Ignore local data directories containing raw images
+data/
+**/archive/*.mp4
+
+# Ignore Python environment and cache
+__pycache__/
+*.pyc
+.venv/
