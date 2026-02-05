@@ -34,27 +34,46 @@ CME (Outer),LASCO C3 (3.7–30 Solar Radii),https://services.swpc.noaa.gov/image
 New CME,GOES-19 CCOR-1 (Modern Coronagraph),https://services.swpc.noaa.gov/images/animations/ccor-1/latest.png
 """
 
-import os
-import shutil
-import requests
-import tomllib
-import logging
-import smtplib
-from email.message import EmailMessage
+
 from datetime import datetime
+from email.message import EmailMessage
+import hashlib
+import os
+import logging
+import requests
+import shutil
+import smtplib
+import tomllib
 
 # --- Configuration ---
-MIN_DISK_GB = 2.0  # Minimum free space required to proceed
+MIN_DISK_GB = 2.0
 
 with open("config.toml", "rb") as f:
     config = tomllib.load(f)
 
-# Setup Logging
-log_path = os.path.join(config['paths']['log_dir'], "space_fetcher.log")
-os.makedirs(config['paths']['log_dir'], exist_ok=True)
+log_path = os.path.join(config['paths']['swpc_log_dir'], "space_fetcher.log")
+os.makedirs(config['paths']['swpc_log_dir'], exist_ok=True)
 logging.basicConfig(filename=log_path, level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
+def get_most_recent_file(directory):
+    """Returns the path to the newest file in the directory, or None."""
+    files = [os.path.join(directory, f) for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
+    if not files:
+        return None
+    return max(files, key=os.path.getmtime)
+
+def calculate_md5(content):
+    """Returns MD5 hex digest of binary content."""
+    return hashlib.md5(content).hexdigest()
+
+def calculate_file_md5(file_path):
+    """Returns MD5 hex digest of an existing file."""
+    hasher = hashlib.md5()
+    with open(file_path, 'rb') as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hasher.update(chunk)
+    return hasher.hexdigest()
 
 def send_alert(subject, body):
     msg = EmailMessage()
@@ -70,47 +89,52 @@ def send_alert(subject, body):
     except Exception as e:
         logging.error(f"Failed to send SMTP alert: {e}")
 
-
 def check_disk_space(path):
-    """Returns True if free space is above MIN_DISK_GB."""
     total, used, free = shutil.disk_usage(path)
     free_gb = free / (2 ** 30)
     if free_gb < MIN_DISK_GB:
-        msg = f"Low Disk Space: {free_gb:.2f} GB remaining. Threshold: {MIN_DISK_GB} GB."
+        msg = f"Low Disk Space: {free_gb:.2f} GB remaining."
         logging.warning(msg)
         send_alert("Disk Space Warning", msg)
         return False
     return True
 
-
 def main():
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    # Check disk space using the first target directory's parent as a proxy for the volume
     if not config['targets'] or not check_disk_space(os.path.dirname(config['targets'][0]['dir'])):
         return
 
     for target in config['targets']:
-        name = target['name']
-        url = target['url']
-        save_dir = target['dir']
-
+        name, url, save_dir = target['name'], target['url'], target['dir']
         os.makedirs(save_dir, exist_ok=True)
 
-        ext = "png" if "png" in url else "jpg"
+        # Correctly determine extension from URL
+        ext = "png" if url.lower().endswith(".png") else "jpg"
         filename = os.path.join(save_dir, f"{name}_{timestamp}.{ext}")
 
         try:
             response = requests.get(url, timeout=20)
             response.raise_for_status()
+            new_content = response.content
+            new_hash = calculate_md5(new_content)
+
+            # --- MD5 Hash Check ---
+            last_file = get_most_recent_file(save_dir)
+            if last_file:
+                last_hash = calculate_file_md5(last_file)
+                if new_hash == last_hash:
+                    logging.info(f"Skipped {name}: Content unchanged.")
+                    continue
+
             with open(filename, 'wb') as fp:
-                fp.write(response.content)
+                fp.write(new_content)
             logging.info(f"Successfully saved: {name}")
+
         except Exception as e:
             msg = f"Failed to download {name}. Error: {e}"
             logging.error(msg)
             send_alert("Fetch Failure", msg)
-
 
 if __name__ == "__main__":
     main()

@@ -14,3 +14,45 @@ data/
 __pycache__/
 *.pyc
 .venv/
+
+### --- System Files ---
+.DS_Store          # macOS specific
+Thumbs.db          # Windows specific
+*~                 # Linux/Unix temporary files
+*.swp              # Vim swap files
+.directory         # KDE folder settings
+
+### --- Project Specific / Sensitive Data ---
+# Never commit your environment variables or local configs
+.env
+config.json
+secrets.py
+auth.token
+*.log              # Ignore all log files
+
+### --- Python Specific ---
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+
+### --- IDE / Editor Specific ---
+.vscode/           # Visual Studio Code settings
+.idea/             # PyCharm/IntelliJ settings
+*.sublime-project
+*.sublime-workspace
+
+### --- Arduino / Microcomputer Build Files ---
+# These are generated during compilation and don't belong in Git
+build/
+bin/
+*.hex
+*.elf
+*.o
+arduino_debug_log.txt
+
+*.db
+*.sqlite
+*.sqlite3

@@ -20,11 +20,11 @@
 # -----------------------------------------------------------------------------
 
 # Configuration
-DATA_ROOT="/path/to/data"
-LOG_DIR="/path/to/logs"
+DATA_ROOT="/home/reza/Videos/satellite/space_fetcher/data"
+LOG_DIR="/home/reza/noaa/swpc/logs"
 LOG_FILE="$LOG_DIR/weekly_conversion.log"
 DATE_STAMP=$(date +%Y-%W)
-EMAIL_RECEIVER="admin@yourdomain.com"
+EMAIL_RECEIVER="reza@parkcircus.org"
 
 mkdir -p "$LOG_DIR"
 exec >> "$LOG_FILE" 2>&1
