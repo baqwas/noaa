@@ -3,8 +3,8 @@
 -------------------------------------------------------------------------------
 Name:           space_fetcher.py
 Author:         Matha Goram
-Version:        1.0.1
-Updated:        2026-02-04
+Version:        1.1.0
+Updated:        2026-02-06
 Description:    Space Fetcher
 Description:    Unified downloader for NOAA Space Weather imagery. Includes
                 disk space monitoring and SMTP error reporting.
@@ -34,7 +34,7 @@ CME (Outer),LASCO C3 (3.7–30 Solar Radii),https://services.swpc.noaa.gov/image
 New CME,GOES-19 CCOR-1 (Modern Coronagraph),https://services.swpc.noaa.gov/images/animations/ccor-1/latest.png
 """
 
-
+import argparse
 from datetime import datetime
 from email.message import EmailMessage
 import hashlib
@@ -45,16 +45,12 @@ import shutil
 import smtplib
 import tomllib
 
-# --- Configuration ---
+# --- Configuration Constants ---
 MIN_DISK_GB = 2.0
 
-with open("config.toml", "rb") as f:
-    config = tomllib.load(f)
+# Global config placeholder (populated in main)
+config = {}
 
-log_path = os.path.join(config['paths']['swpc_log_dir'], "space_fetcher.log")
-os.makedirs(config['paths']['swpc_log_dir'], exist_ok=True)
-logging.basicConfig(filename=log_path, level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 def get_most_recent_file(directory):
     """Returns the path to the newest file in the directory, or None."""
@@ -63,9 +59,11 @@ def get_most_recent_file(directory):
         return None
     return max(files, key=os.path.getmtime)
 
+
 def calculate_md5(content):
     """Returns MD5 hex digest of binary content."""
     return hashlib.md5(content).hexdigest()
+
 
 def calculate_file_md5(file_path):
     """Returns MD5 hex digest of an existing file."""
@@ -74,6 +72,7 @@ def calculate_file_md5(file_path):
         for chunk in iter(lambda: f.read(4096), b""):
             hasher.update(chunk)
     return hasher.hexdigest()
+
 
 def send_alert(subject, body):
     msg = EmailMessage()
@@ -89,6 +88,7 @@ def send_alert(subject, body):
     except Exception as e:
         logging.error(f"Failed to send SMTP alert: {e}")
 
+
 def check_disk_space(path):
     total, used, free = shutil.disk_usage(path)
     free_gb = free / (2 ** 30)
@@ -99,7 +99,35 @@ def check_disk_space(path):
         return False
     return True
 
+
 def main():
+    global config
+
+    # --- Argparse setup ---
+    parser = argparse.ArgumentParser(description="NOAA Space Imagery Fetcher")
+    parser.add_argument(
+        "--config",
+        type=str,
+        required=True,
+        help="Path to the configuration TOML file"
+    )
+    args = parser.parse_args()
+
+    # --- Load Configuration ---
+    try:
+        with open(args.config, "rb") as f:
+            config = tomllib.load(f)
+    except Exception as e:
+        print(f"Critical Error: Could not load config at {args.config}. Error: {e}")
+        return
+
+    # --- Logging Setup ---
+    log_dir = config['paths']['swpc_log_dir']
+    log_path = os.path.join(log_dir, "space_fetcher.log")
+    os.makedirs(log_dir, exist_ok=True)
+    logging.basicConfig(filename=log_path, level=logging.INFO,
+                        format='%(asctime)s - %(levelname)s - %(message)s')
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     if not config['targets'] or not check_disk_space(os.path.dirname(config['targets'][0]['dir'])):
@@ -135,6 +163,7 @@ def main():
             msg = f"Failed to download {name}. Error: {e}"
             logging.error(msg)
             send_alert("Fetch Failure", msg)
+
 
 if __name__ == "__main__":
     main()
