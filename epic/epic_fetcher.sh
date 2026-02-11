@@ -19,98 +19,25 @@
 # copies or substantial portions of the Software.
 # -------------------------------------------------------------------------------
 
-# --- ANSI Color Codes ---
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+PROJ_ROOT="/home/reza/PycharmProjects/noaa"
+VENV="${PROJ_ROOT}/.venv/bin/activate"
+CONFIG="${PROJ_ROOT}/swpc/config.toml"
+SCRIPT="${PROJ_ROOT}/epic/epic_fetcher.py"
 
-# --- Configuration ---
-# Leveraging your existing variable style for consistency
-EPIC_ROOT="$HOME/PycharmProjects/noaa/epic/"
-SWPC_ROOT="$HOME/PycharmProjects/noaa/swpc/"
-VENV_PATH="${SWPC_ROOT}../.venv/bin/activate" #
-PYTHON_SCRIPT="${EPIC_ROOT}epic_fetcher.py"
-REQUIRED_CONFIG="${SWPC_ROOT}config.toml"     #
+BLUE='\033[0;34m'; GREEN='\033[0;32m'; NC='\033[0m'
 
-# --- UI Functions ---
-log_info()    { echo -e "${BLUE}[INFO]${NC}  $1"; }
-log_success() { echo -e "${GREEN}[OK]${NC}    $1"; }
-log_warn()    { echo -e "${YELLOW}[WARN]${NC}  $1"; }
-log_error()   { echo -e "${RED}[ERROR]${NC} $1" >&2; }
+echo -e "${BLUE}[$(date)] Starting EPIC Ingest...${NC}"
 
-header() {
-    echo -e "${CYAN}==============================================${NC}"
-    echo -e "${CYAN}   NASA EPIC FETCHER - AUTOMATION WRAPPER     ${NC}"
-    echo -e "${CYAN}==============================================${NC}"
-}
+if [[ ! -f "$VENV" ]]; then
+    echo "Error: Virtual Environment missing."
+    exit 1
+fi
 
-# --- Validation Logic ---
-check_environment() {
-    log_info "Validating project structure..."
+source "$VENV"
+python3 "$SCRIPT" --config "$CONFIG"
 
-    # Check if Python script exists at defined path
-    if [[ ! -f "$PYTHON_SCRIPT" ]]; then
-        log_error "Target script not found: $PYTHON_SCRIPT"
-        exit 1
-    fi
-
-    # Check if the unified config.toml exists in the swpc folder
-    if [[ ! -f "$REQUIRED_CONFIG" ]]; then
-        log_error "Global configuration missing: $REQUIRED_CONFIG"
-        exit 1
-    fi
-
-    # Check if venv exists
-    if [[ ! -f "$VENV_PATH" ]]; then
-        log_error "Virtual environment activation script missing: $VENV_PATH"
-        exit 1
-    fi
-}
-
-# --- Execution ---
-main() {
-    header
-
-    check_environment
-
-    # 1. Activate Virtual Environment
-    log_info "Sourcing virtual environment..."
-    # shellcheck disable=SC1091
-    if source "$VENV_PATH"; then #
-        log_success "Environment successfully activated."
-    else
-        log_error "Failed to source the virtual environment."
-        exit 1
-    fi
-
-    # 2. Dependency Check
-    if ! python3 -c "import requests, tomllib" &> /dev/null; then
-        log_error "Required libraries (requests/tomllib) not found in venv."
-        exit 1
-    fi
-
-    # 3. Launch Python Script
-    log_info "Executing EPIC ingest process..."
-    echo -e "${CYAN}----------------------------------------------${NC}"
-
-    # Passing the REQUIRED_CONFIG as a command line parameter
-    python3 "$PYTHON_SCRIPT" --config "$REQUIRED_CONFIG"
-    EXIT_CODE=$?
-
-    echo -e "${CYAN}----------------------------------------------${NC}"
-
-    # 4. Final Status Reporting
-    if [[ $EXIT_CODE -eq 0 ]]; then
-        log_success "EPIC Fetcher completed successfully."
-    else
-        log_error "EPIC Fetcher failed with exit code: $EXIT_CODE"
-        log_warn "Check logs in ~/noaa/epic/logs/ for details."
-        exit $EXIT_CODE
-    fi
-}
-
-# Invoke Main
-main
+if [ $? -eq 0 ]; then
+    echo -e "${GREEN}EPIC images updated successfully.${NC}"
+else
+    echo -e "\033[0;31mEPIC Fetch failed. Check /Videos/satellite/epic/logs/epic_fetcher.log${NC}"
+fi

@@ -1,0 +1,23 @@
+# requests: Essential for all instruments (EPIC, GOES, SWPC, Terran) to communicate with NASA and NOAA APIs.
+# paho-mqtt: Required for your new weather_alerts.py script to publish Texas NWS data to your LAN broker
+# tomllib: Used to parse config.toml. Note that this is built into Python 3.11+, but the requirement ensures compatibility if you ever run this on an older 3.10 system.
+# 1. Navigate to the project root
+# cd <...>/noaa/
+# 2. Activate the virtual environment
+# source .venv/bin/activate
+# 3. Install the requirements
+# pip install -r requirements.txt
+
+# --- Core API & Data Handling ---
+requests>=2.31.0
+tomllib; python_version < "3.11"
+
+# --- Messaging & Integration ---
+paho-mqtt>=1.6.1
+
+# --- Optional/Utility (if added later) ---
+# schedule>=1.2.1
+# python-dotenv>=1.0.0
+
+pex
+pandas

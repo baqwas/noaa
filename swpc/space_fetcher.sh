@@ -23,31 +23,25 @@
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m';
 BLUE='\033[0;34m'; NC='\033[0m'
 
-# Absolute Configuration Paths
-WORKING_DIR="${HOME}/PycharmProjects/noaa/weather"
-SWPC_DIR="${HOME}/PycharmProjects/noaa/swpc"
-# Updated to use absolute path for standard NOAA environment consistency
-VENV="${HOME}/PycharmProjects/noaa/.venv/bin/activate"
-CONFIG="${SWPC_DIR}/config.toml"
-PYTHON_SCRIPT="${WORKING_DIR}/alerts_texas.py"
+PROJ_ROOT="/home/reza/PycharmProjects/noaa"
+VENV="${PROJ_ROOT}/.venv/bin/activate"
+CONFIG="${PROJ_ROOT}/swpc/config.toml"
+SCRIPT="${PROJ_ROOT}/swpc/space_fetcher.py"
 
-echo -e "${YELLOW}>>> Checking for Active Texas Weather Alerts... <<<${NC}"
+BLUE='\033[0;34m'; GREEN='\033[0;32m'; NC='\033[0m'
 
-# Check for environment before running
+echo -e "${BLUE}[$(date)] Starting Space Fetcher Cycle...${NC}"
+
 if [[ ! -f "$VENV" ]]; then
-    echo -e "${RED}[ERROR] Virtual environment not found at $VENV${NC}"
+    echo -e "Error: Virtual Environment not found."
     exit 1
 fi
 
-# Activate Virtual Environment
 source "$VENV"
+python3 "$SCRIPT" --config "$CONFIG"
 
-# Execute Python script
-python3 "$PYTHON_SCRIPT" --config "$CONFIG"
-EXIT_CODE=$?
-
-if [ $EXIT_CODE -eq 0 ]; then
-    echo -e "${GREEN}Check complete. Logs stored in ~/Videos/satellite/weather/logs/${NC}"
+if [ $? -eq 0 ]; then
+    echo -e "${GREEN}Cycle successful.${NC}"
 else
-    echo -e "${RED}[ERROR] Alert check failed with exit code $EXIT_CODE. Check logs.${NC}"
+    echo -e "${RED}Cycle failed. Check instrument logs.${NC}"
 fi

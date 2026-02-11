@@ -19,54 +19,57 @@
 # copies or substantial portions of the Software.
 # -----------------------------------------------------------------------------
 
-# Configuration
-DATA_ROOT="/home/reza/Videos/satellite/space_fetcher/data"
-LOG_DIR="/home/reza/noaa/swpc/logs"
-LOG_FILE="$LOG_DIR/weekly_conversion.log"
-DATE_STAMP=$(date +%Y-%W)
-EMAIL_RECEIVER="reza@parkcircus.org"
+# --- Paths ---
+BASE="/home/reza/Videos/satellite/swpc"
+WEEK=$(date +%Y-W%U)
 
-mkdir -p "$LOG_DIR"
-exec >> "$LOG_FILE" 2>&1
+# UI Styling
+BLUE='\033[0;34m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 
-echo "--- Weekly Processing Started: $(date) ---"
+echo -e "${BLUE}>>> Starting Weekly Archive Compilation ($WEEK) <<<${NC}"
 
-# Use 'find' to locate directories containing images, excluding existing archive folders
-find "$DATA_ROOT" -type d -not -path "*/archive*" | while read -r DIR; do
+# Find all "videos" directories
+find "$BASE" -type d -name "videos" | while read -r VID_DIR; do
 
-    # Check if directory contains images
-    if ls "$DIR"/*.{jpg,png} >/dev/null 2>&1; then
+    # Validation: Ensure VID_DIR is not empty
+    if [[ -z "$VID_DIR" ]]; then continue; fi
 
-        # Create a clean log name by removing DATA_ROOT from the path
-        # Example: /path/to/data/aurora/north -> aurora/north
-        LOG_NAME=${DIR#$DATA_ROOT/}
-        LOG_NAME=${LOG_NAME%/} # Remove trailing slash
+    INSTR_ROOT=$(dirname "$VID_DIR")
+    # Correctly grab the instrument name (aurora, solar_304, etc.)
+    INSTR_NAME=$(basename "$INSTR_ROOT")
+    LOG="${INSTR_ROOT}/${INSTR_NAME}.log"
 
-        # Define output file name (replace slashes with underscores for the filename)
-        FILE_SAFE_NAME=$(echo "$LOG_NAME" | tr '/' '_')
-        ARCHIVE_DIR="${DIR}/archive"
-        OUTPUT_FILE="${DIR}/${FILE_SAFE_NAME}_${DATE_STAMP}.mp4"
+    # Check if there are actually MP4 files to process
+    shopt -s nullglob
+    VIDEOS=("$VID_DIR"/*.mp4)
+    shopt -u nullglob
 
-        echo "Processing Instrument: [$LOG_NAME]..."
-
-        # FFmpeg: Convert images to MP4
-        ffmpeg -f image2 -pattern_type glob -i "$DIR/*.{jpg,png}" \
-               -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" \
-               -c:v libx264 -pix_fmt yuv420p -r 10 "$OUTPUT_FILE" -y -loglevel error
-
-        if [ $? -eq 0 ]; then
-            mkdir -p "$ARCHIVE_DIR"
-            mv "$OUTPUT_FILE" "$ARCHIVE_DIR/"
-
-            # Delete only images in current directory (not subdirs)
-            find "$DIR" -maxdepth 1 -type f \( -name "*.jpg" -o -name "*.png" \) -delete
-
-            echo "Success: [$LOG_NAME] archived and purged."
-        else
-            echo "ERROR: FFmpeg failed for [$LOG_NAME]"
-            echo "Weekly timelapse failed for $LOG_NAME on $(date)" | mail -s "Space Video Failure: $LOG_NAME" "$EMAIL_RECEIVER"
-        fi
+    if [ ${#VIDEOS[@]} -eq 0 ]; then
+        echo -e "${YELLOW}[WARN] No daily videos found in $VID_DIR. Skipping.${NC}"
+        continue
     fi
+
+    # Extract unique prefixes (e.g., aurora_north, aurora_south, solar_304)
+    # This prevents the "missing operand" error by ensuring we only iterate on existing files
+    PREFIXES=$(ls "$VID_DIR"/*.mp4 2>/dev/null | xargs -I {} basename {} | cut -d'_' -f1-2 | sort -u)
+
+    for PREFIX in $PREFIXES; do
+        # Final safety check on PREFIX
+        if [[ -z "$PREFIX" ]]; then continue; fi
+
+        echo -e "Archiving Weekly: ${GREEN}$PREFIX${NC}"
+        echo "[$(date)] Archiving Weekly for $PREFIX" >> "$LOG"
+
+        # Create temporary concat list
+        JOIN_FILE="${VID_DIR}/join_${PREFIX}.txt"
+        printf "file '%s'\n" "$VID_DIR"/${PREFIX}_*.mp4 > "$JOIN_FILE"
+
+        # -nostdin is critical for running inside a 'while read' loop
+        ffmpeg -nostdin -y -f concat -safe 0 -i "$JOIN_FILE" -c copy \
+               "${VID_DIR}/WEEKLY_${PREFIX}_${WEEK}.mp4" >> "$LOG" 2>&1
+
+        rm "$JOIN_FILE"
+    done
 done
 
-echo "--- Weekly Processing Finished: $(date) ---"
+echo -e "${GREEN}Weekly processing complete.${NC}"

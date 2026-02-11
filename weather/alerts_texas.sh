@@ -1,35 +1,30 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------
-# Name:           alerts_texas.sh
-# Description:    Wrapper for Texas Weather Alerts monitoring.
+# ⚠️ NAME          : alerts_texas.sh
+# 🔖 VERSION       : 1.1.0 (Iconified)
 # -------------------------------------------------------------------------------
 
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m';
-BLUE='\033[0;34m'; NC='\033[0m'
+PROJ_DIR="/home/reza/PycharmProjects/noaa"
+VENV_PATH="${PROJ_DIR}/.venv/bin/activate"
+PYTHON_SCRIPT="${PROJ_DIR}/weather/alerts_texas.py"
+LOG_FILE="/home/reza/Videos/satellite/noaa/logs/weather.log"
 
-# Absolute Configuration Paths
-WORKING_DIR="${HOME}/PycharmProjects/noaa/weather"
-SWPC_DIR="${HOME}/PycharmProjects/noaa/swpc"
-VENV="${SWPC_DIR}/../.venv/bin/activate"
-CONFIG="${SWPC_DIR}/config.toml"
-PYTHON_SCRIPT="${WORKING_DIR}/alerts_texas.py"
+BLUE='\033[0;34m'; GREEN='\033[0;32m'; RED='\033[0;31m'; NC='\033[0m'
 
-echo -e "${YELLOW}>>> Checking for Active Texas Weather Alerts... <<<${NC}"
+echo -e "${BLUE}📡 [$(date +'%H:%M:%S')] Syncing Texas Alerts to MQTT Broker...${NC}"
 
-# Check for environment before running
-if [[ ! -f "$VENV" ]]; then
-    echo -e "${RED}[ERROR] Virtual environment not found at $VENV${NC}"
+if [ -f "$VENV_PATH" ]; then
+    source "$VENV_PATH"
+else
+    echo -e "${RED}❌ [ERROR] Venv not found at $VENV_PATH${NC}" | tee -a "$LOG_FILE"
     exit 1
 fi
 
-source "$VENV"
+python3 -u "$PYTHON_SCRIPT" >> "$LOG_FILE" 2>&1
 
-# Execute Python script
-python3 "$PYTHON_SCRIPT" --config "$CONFIG"
-EXIT_CODE=$?
-
-if [ $EXIT_CODE -eq 0 ]; then
-    echo -e "${GREEN}Check complete. Logs stored in ~/Videos/satellite/weather/logs/${NC}"
+if [ $? -eq 0 ]; then
+    echo -e "${GREEN}✅ [SUCCESS] Alerts dispatched to raspbari7.${NC}"
 else
-    echo -e "${RED}[ERROR] Alert check failed with exit code $EXIT_CODE. Check logs.${NC}"
+    echo -e "${RED}❌ [FAIL] Dispatch failed. Check logs.${NC}"
 fi
+

@@ -11,80 +11,64 @@
 # Copyright:    (c) 2026 ParkCircus Productions; All Rights Reserved
 # -----------------------------------------------------------------------------
 
-# --- Configuration & Styling ---
+# --- UI Styling (Consistency with NOAA Project Standards) ---
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 BOLD='\033[1m'
-NC='\033[0m'
+NC='\033[0m' # No Color
 
-# --- Paths & Variables ---
-# Targets images from "yesterday" (e.g., 2026-02-03)
-TARGET_DATE=$(date -d "yesterday" +%Y-%m-%d)
-BASE_DATA_DIR="/home/reza/Videos/satellite/noaa"
-LOG_DIR="/home/reza/Videos/satellite/noaa/logs"
-LOG_FILE="$LOG_DIR/goes_daily_compile.log"
-EMAIL_RECEIVER="reza@parkcircus.org"
+# --- Paths ---
+DATE_STAMP=$(date +%Y-%m-%d)
+BASE_PATH="/home/reza/Videos/satellite/noaa"
 
-# List of satellite subdirectories to process
-SATELLITES=("goes-east" "goes-west")
+# --- Helper Functions ---
+log_event() {
+    local TYPE=$1
+    local MSG=$2
+    case "$TYPE" in
+        "INFO") echo -e "${BLUE}[INFO]${NC} $MSG" ;;
+        "SUCCESS") echo -e "${GREEN}${BOLD}[SUCCESS]${NC} $MSG" ;;
+        "WARN") echo -e "${YELLOW}[WARN]${NC} $MSG" ;;
+        "ERROR") echo -e "${RED}${BOLD}[ERROR]${NC} $MSG" ;;
+    esac
+}
 
-# --- Initialization ---
-mkdir -p "$LOG_DIR"
-exec > >(tee -a "$LOG_FILE") 2>&1
+echo -e "${BLUE}${BOLD}>>> Starting Daily GOES Video Compilation Cycle ($DATE_STAMP) <<<${NC}\n"
 
-log_msg() { echo -e "${BLUE}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} $1"; }
-error_msg() { echo -e "${RED}${BOLD}[ERROR]${NC} $1"; }
-success_msg() { echo -e "${GREEN}${BOLD}[SUCCESS]${NC} $1"; }
+# --- Processing Loop ---
+for SAT in "goes-east" "goes-west"; do
+    IMG_DIR="${BASE_PATH}/${SAT}/images"
+    VID_DIR="${BASE_PATH}/${SAT}/videos"
+    LOG_FILE="${BASE_PATH}/${SAT}/logs/video_compile.log"
 
-log_msg "------------------------------------------------------------"
-log_msg "Starting Daily GOES Compilation for Date: $TARGET_DATE"
+    mkdir -p "$VID_DIR"
 
-for SAT in "${SATELLITES[@]}"; do
-    DIR="$BASE_DATA_DIR/$SAT"
-    VIDEO_DIR="$DIR/videos"
-    OUTPUT_FILE="$VIDEO_DIR/${SAT}_${TARGET_DATE}.mp4"
+    log_event "INFO" "Processing ${SAT}..."
 
-    log_msg "Processing: $SAT"
+    # 1. Check if images exist
+    if [ -d "$IMG_DIR" ] && [ "$(ls -A "$IMG_DIR")" ]; then
+        OUTPUT_FILE="${VID_DIR}/${SAT}_${DATE_STAMP}.mp4"
 
-    # Verify directory exists
-    if [[ ! -d "$DIR" ]]; then
-        error_msg "Directory not found: $DIR. Skipping."
-        continue
-    fi
+        # 2. Execute FFMPEG
+        # Using -y to overwrite if a run failed earlier today
+        ffmpeg -y -framerate 10 -pattern_type glob -i "${IMG_DIR}/*.jpg" \
+               -c:v libx264 -pix_fmt yuv420p "$OUTPUT_FILE" >> "$LOG_FILE" 2>&1
 
-    mkdir -p "$VIDEO_DIR"
+        if [[ $? -eq 0 ]]; then
+            log_event "SUCCESS" "Video created: $(basename "$OUTPUT_FILE")"
 
-    # Identify files from the target date.
-    # Assumes filename format from retrieve_goes_unified.py: SATNAME_YYYY-MM-DDTHH:MM:SS.jpg
-    FILES=$(find "$DIR" -maxdepth 1 -name "*${TARGET_DATE}*.jpg" | sort)
-
-    if [[ -z "$FILES" ]]; then
-        log_msg "No images found for $SAT on $TARGET_DATE. Skipping."
-        continue
-    fi
-
-    log_msg "Compiling video for $SAT..."
-
-    # FFmpeg: Compile images for the specific date
-    # Uses 'scale' filter for compatibility and 'yuv420p' for standard playback
-    ffmpeg -f image2 -pattern_type glob -i "$DIR/*${TARGET_DATE}*.jpg" \
-           -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" \
-           -c:v libx264 -pix_fmt yuv420p -r 15 "$OUTPUT_FILE" -y -loglevel error
-
-    if [[ $? -eq 0 ]]; then
-        success_msg "Video created: $OUTPUT_FILE"
-
-        # Granular Cleanup: Delete only the files that were just processed
-        log_msg "Purging source images for $TARGET_DATE..."
-        find "$DIR" -maxdepth 1 -name "*${TARGET_DATE}*.jpg" -delete
-        success_msg "Cleanup complete for $SAT."
+            # 3. Purge daily images upon success
+            rm "${IMG_DIR}"/*.jpg
+            log_event "INFO" "Cleaned ${SAT}/images directory."
+        else
+            log_event "ERROR" "FFMPEG failed for ${SAT}. Check logs: $LOG_FILE"
+        fi
     else
-        error_msg "FFmpeg failed for $SAT."
-        echo "Daily GOES compilation failed for $SAT on $(date)" | mail -s "GOES Video Failure: $SAT" "$EMAIL_RECEIVER"
+        log_event "WARN" "No source images found in $IMG_DIR. Skipping."
     fi
+    echo "------------------------------------------------------------"
 done
 
-log_msg "Daily GOES Compilation Finished."
-log_msg "------------------------------------------------------------"
+echo -e "\n${GREEN}${BOLD}Compilation cycle finished.${NC}"

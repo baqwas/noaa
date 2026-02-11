@@ -15,13 +15,16 @@ import tomllib
 import smtplib
 from email.message import EmailMessage
 
-def get_dir_size(start_path):
+
+def get_dir_size_gb(path):
     total_size = 0
-    for dirpath, dirnames, filenames in os.walk(start_path):
+    if not os.path.exists(path):
+        return 0.0
+    for dirpath, dirnames, filenames in os.walk(path):
         for f in filenames:
-            fp = os.path.join(dirpath, f)
-            total_size += os.path.getsize(fp)
-    return total_size / (1024**3) # Return in GB
+            total_size += os.path.getsize(os.path.join(dirpath, f))
+    return total_size / (1024 ** 3)
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -31,30 +34,36 @@ def main():
     with open(args.config, "rb") as f:
         config = tomllib.load(f)
 
-    root = config['epic']['storage_dir']
+    # Use 'storage_root' as refactored in config.toml
+    root = config['epic']['storage_root']
     stats = []
     total_project_size = 0
 
-    for continent in os.listdir(root):
+    # Continents: Americas, Africa_Europe, Asia_Australia
+    for continent in ["Americas", "Africa_Europe", "Asia_Australia"]:
         cont_path = os.path.join(root, continent)
         if os.path.isdir(cont_path):
-            size = get_dir_size(cont_path)
-            count = len(os.listdir(cont_path))
-            stats.append(f"- {continent}: {count} images ({size:.2f} GB)")
+            size = get_dir_size_gb(cont_path)
+            # Count images specifically in the /images subfolder
+            img_dir = os.path.join(cont_path, "images")
+            count = len(os.listdir(img_dir)) if os.path.exists(img_dir) else 0
+
+            stats.append(f"- {continent}: {count} images ({size:.4f} GB total)")
             total_project_size += size
 
     report = (
-        f"EPIC Storage Monthly Report\n"
-        f"===========================\n"
-        + "\n".join(stats) +
-        f"\n\nTotal Storage Used: {total_project_size:.2f} GB\n"
-        f"Storage Limit: {config['dashboard']['storage_limit_gb']} GB"
+            f"EPIC Storage Health Report\n"
+            f"Generated: {os.uname()[1]} @ {os.popen('date').read()}\n"
+            f"===========================\n"
+            + "\n".join(stats) +
+            f"\n\nTotal Project Storage: {total_project_size:.4f} GB\n"
+            f"Threshold Limit: {config['dashboard']['storage_limit_gb']} GB"
     )
 
-    # Send via Email
+    # Dispatch via SMTP
     msg = EmailMessage()
     msg.set_content(report)
-    msg['Subject'] = "EPIC Project: Monthly Storage Stats"
+    msg['Subject'] = "EPIC Project: Storage Summary"
     msg['From'] = config['smtp']['sender']
     msg['To'] = config['smtp']['receiver']
 
@@ -63,9 +72,9 @@ def main():
             server.starttls()
             server.login(config['smtp']['user'], config['smtp']['password'])
             server.send_message(msg)
-        print("Monthly dashboard report sent successfully.")
     except Exception as e:
-        print(f"Failed to send dashboard: {e}")
+        print(f"Reporting Error: {e}")
+
 
 if __name__ == "__main__":
     main()

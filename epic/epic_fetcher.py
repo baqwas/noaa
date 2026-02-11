@@ -74,34 +74,35 @@ def main():
             logging.warning("No new EPIC imagery available in API response.")
             return
 
-        storage_root = config['epic']['storage_dir']
+        # Use storage_root to align with project standards
+        storage_root = config['epic']['storage_root']
 
-        # Iterate through target longitudes to find the best matching frame
         for continent, target_lon in CONTINENT_LONGITUDES.items():
-            # Find the frame where the Earth's centroid is closest to target longitude
+            # Find the frame closest to target longitude
             best_frame = min(data, key=lambda x: abs(x['centroid_coordinates']['lon'] - target_lon))
 
             image_name = best_frame['image']
-            # EPIC dates are in format YYYY-MM-DD HH:MM:SS
             date_obj = datetime.strptime(best_frame['date'], "%Y-%m-%d %H:%M:%S")
             date_path = date_obj.strftime("%Y/%m/%d")
 
-            # Construct download URL: archive/natural/YYYY/MM/DD/png/image_name.png
-            download_url = f"{config['epic']['archive_base']}/{date_path}/png/{image_name}.png"
+            # NEW HIERARCHY: .../epic/Americas/images/
+            img_dir = os.path.join(storage_root, continent, "images")
+            os.makedirs(img_dir, exist_ok=True)
 
-            cont_dir = os.path.join(storage_root, continent)
-            os.makedirs(cont_dir, exist_ok=True)
-            save_path = os.path.join(cont_dir, f"{continent}_{date_obj.strftime('%Y%m%d')}.png")
+            save_path = os.path.join(img_dir, f"{continent}_{date_obj.strftime('%Y%m%d')}.png")
 
             if os.path.exists(save_path):
-                logging.info(f"Skipping {continent}: File already exists for today.")
+                logging.info(f"Skipping {continent}: Frame already exists.")
                 continue
+
+            # Construct download URL
+            download_url = f"{config['epic']['archive_base']}/{date_path}/png/{image_name}.png"
 
             # Download Image
             img_res = requests.get(download_url, stream=True, timeout=60)
             img_res.raise_for_status()
             with open(save_path, 'wb') as f:
-                for chunk in img_res.iter_content(1024):
+                for chunk in img_res.iter_content(4096):  # Larger chunk for PNG efficiency
                     f.write(chunk)
 
             logging.info(f"Successfully archived {continent} imagery to {save_path}")

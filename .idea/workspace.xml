@@ -4,18 +4,39 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b27444be-ebd4-47db-9af3-131b82b9d125" name="Changes" comment="Reactivated GOES after refactoring">
-      <change afterPath="$PROJECT_DIR$/epic/epic_dashboard.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/epic/epic_dashboard.sh" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/epic/epic_fetcher.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/epic/epic_fetcher.sh" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/goes/run_goes_retrieval.sh" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/swpc/space_fetcher.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/noaa.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/noaa.iml" afterDir="false" />
+    <list default="true" id="b27444be-ebd4-47db-9af3-131b82b9d125" name="Changes" comment="Integrated alerts_texas into the solution">
+      <change afterPath="$PROJECT_DIR$/DEPLOYMENT.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/backup_config_noaa.sh" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/goes/verify_paths.sh" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/setup_infrastructure.sh" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/swpc/LICENSE" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/swpc/space_status.sh" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/swpc/system_audit.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/swpc/system_audit.sh" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/terran/terran_trends.sh" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/weather/rainfall.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/weather/rainfall_trend.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/goes/logs/goes_wrapper.log" beforeDir="false" afterPath="$PROJECT_DIR$/goes/logs/goes_wrapper.log" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/epic/epic_dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/epic/epic_dashboard.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/epic/epic_dashboard.sh" beforeDir="false" afterPath="$PROJECT_DIR$/epic/epic_dashboard.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/epic/epic_fetcher.py" beforeDir="false" afterPath="$PROJECT_DIR$/epic/epic_fetcher.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/epic/epic_fetcher.sh" beforeDir="false" afterPath="$PROJECT_DIR$/epic/epic_fetcher.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/goes/compile_goes_daily.sh" beforeDir="false" afterPath="$PROJECT_DIR$/goes/compile_goes_daily.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/goes/logs/goes_wrapper.log" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/goes/retrieve_goes.py" beforeDir="false" afterPath="$PROJECT_DIR$/goes/retrieve_goes.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/goes/retrieve_goes.sh" beforeDir="false" afterPath="$PROJECT_DIR$/goes/retrieve_goes.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/goes/run_goes_retrieval.sh" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/swpc/compile_weekly.sh" beforeDir="false" afterPath="$PROJECT_DIR$/swpc/compile_weekly.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/swpc/process_timelapse.sh" beforeDir="false" afterPath="$PROJECT_DIR$/swpc/process_timelapse.sh" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/swpc/space_fetcher.py" beforeDir="false" afterPath="$PROJECT_DIR$/swpc/space_fetcher.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/swpc/space_fetcher.sh" beforeDir="false" afterPath="$PROJECT_DIR$/swpc/space_fetcher.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/swpc/space_status.py" beforeDir="false" afterPath="$PROJECT_DIR$/swpc/space_status.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/terran/terran_watch.py" beforeDir="false" afterPath="$PROJECT_DIR$/terran/terran_watch.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/terran/terran_watch.sh" beforeDir="false" afterPath="$PROJECT_DIR$/terran/terran_watch.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/weather/alerts_texas.py" beforeDir="false" afterPath="$PROJECT_DIR$/weather/alerts_texas.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/weather/alerts_texas.sh" beforeDir="false" afterPath="$PROJECT_DIR$/weather/alerts_texas.sh" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -52,31 +73,80 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ASKED_ADD_EXTERNAL_FILES&quot;: &quot;true&quot;,
-    &quot;Python.goes_current.executor&quot;: &quot;Run&quot;,
-    &quot;Python.main.executor&quot;: &quot;Run&quot;,
-    &quot;Python.retrieve_goes18_west.executor&quot;: &quot;Run&quot;,
-    &quot;Python.retrieve_latest.executor&quot;: &quot;Run&quot;,
-    &quot;Python.space_fetcher.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;SHELLCHECK.PATH&quot;: &quot;/home/reza/.local/share/JetBrains/PyCharm2025.3/Shell Script/shellcheck&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/home/reza/PycharmProjects/noaa/goes_current.py&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ASKED_ADD_EXTERNAL_FILES": "true",
+    "Python.goes_current.executor": "Run",
+    "Python.main.executor": "Run",
+    "Python.rainfall.executor": "Run",
+    "Python.rainfall_trend.executor": "Run",
+    "Python.retrieve_goes18_west.executor": "Run",
+    "Python.retrieve_latest.executor": "Run",
+    "Python.space_fetcher.executor": "Run",
+    "RunOnceActivity.MCP Project settings loaded": "true",
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "SHELLCHECK.PATH": "/home/reza/.local/share/JetBrains/PyCharm2025.3/Shell Script/shellcheck",
+    "git-widget-placeholder": "master",
+    "last_opened_file_path": "/home/reza/PycharmProjects/noaa/goes_current.py",
+    "settings.editor.selected.configurable": "preferences.startup.tasks"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/weather" />
       <recent name="$PROJECT_DIR$/goes" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.space_fetcher">
+  <component name="RunManager" selected="Python.rainfall_trend">
+    <configuration name="rainfall" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="noaa" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/weather" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="RUN_TOOL" value="" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/weather/rainfall.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="rainfall_trend" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="noaa" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/weather" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="RUN_TOOL" value="" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/weather/rainfall_trend.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <configuration name="retrieve_goes18_west" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
       <module name="noaa" />
       <option name="ENV_FILES" value="" />
@@ -125,6 +195,8 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.rainfall_trend" />
+        <item itemvalue="Python.rainfall" />
         <item itemvalue="Python.space_fetcher" />
       </list>
     </recent_temporary>
@@ -161,7 +233,31 @@
       <option name="project" value="LOCAL" />
       <updated>1770251288881</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="First pass at EPIC data">
+      <option name="closed" value="true" />
+      <created>1770388763825</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1770388763825</updated>
+    </task>
+    <task id="LOCAL-00004" summary="First pass at EPIC data">
+      <option name="closed" value="true" />
+      <created>1770388782055</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1770388782055</updated>
+    </task>
+    <task id="LOCAL-00005" summary="Integrated alerts_texas into the solution">
+      <option name="closed" value="true" />
+      <created>1770392713319</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1770392713319</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -179,7 +275,9 @@
     <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
     <MESSAGE value="First commit" />
     <MESSAGE value="Reactivated GOES after refactoring" />
-    <option name="LAST_COMMIT_MESSAGE" value="Reactivated GOES after refactoring" />
+    <MESSAGE value="First pass at EPIC data" />
+    <MESSAGE value="Integrated alerts_texas into the solution" />
+    <option name="LAST_COMMIT_MESSAGE" value="Integrated alerts_texas into the solution" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

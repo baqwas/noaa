@@ -1,38 +1,37 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------
-# Name:           terran_watch.sh
-# Description:    Wrapper for Land Use monitoring. Handles cron/env/logs.
+# 🌱 NAME          : terran_watch.sh
+# 📝 DESCRIPTION   : Wrapper for Land Use monitoring. Handles cron/env/logs.
+# 🔖 VERSION       : 1.1.0 (Iconified)
+# 📅 UPDATED       : 2026-02-10
+# 👤 AUTHOR        : Matha Goram
+# ⚖️ LICENSE       : MIT License (c) 2026 ParkCircus Productions
 # -------------------------------------------------------------------------------
 
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m';
-BLUE='\033[0;34m'; NC='\033[0m'
+# --- 🎨 Configuration & Styling ---
+PROJ_ROOT="/home/reza/PycharmProjects/noaa"
+VENV="${PROJ_ROOT}/.venv/bin/activate"
+CONFIG="${PROJ_ROOT}/swpc/config.toml"
+SCRIPT="${PROJ_ROOT}/terran/terran_watch.py"
 
-# Paths
-TERRAN_DIR="$HOME/PycharmProjects/noaa/terran"
-SWPC_DIR="$HOME/PycharmProjects/noaa/swpc"
-VENV="${SWPC_DIR}/../.venv/bin/activate"
-CONFIG="${SWPC_DIR}/config.toml"
+BLUE='\033[0;34m'; GREEN='\033[0;32m'; RED='\033[0;31m'; NC='\033[0m'; BOLD='\033[1m'
 
-log_msg() { echo -e "${BLUE}[TERRAN]${NC} $1"; }
+echo -e "${BLUE}🚀 [$(date +'%Y-%m-%d %H:%M:%S')] Starting Terran (GIBS) Ingest...${NC}"
 
-main() {
-    echo -e "${YELLOW}>>> Starting Collin County Land Use Monitor <<<${NC}"
+# --- 🛡️ Environment Validation ---
+if [[ ! -f "$VENV" ]]; then
+    echo -e "${RED}❌ [ERROR] Virtual Environment not found at: $VENV${NC}"
+    exit 1
+fi
 
-    if [[ ! -f "$VENV" ]]; then
-        echo -e "${RED}Error: Venv not found at $VENV${NC}"
-        exit 1
-    fi
+# --- ⚙️ Execution ---
+source "$VENV"
+python3 "$SCRIPT" --config "$CONFIG"
 
-    source "$VENV"
-
-    python3 "${TERRAN_DIR}/terran_watch.py" --config "$CONFIG"
-    EXIT_CODE=$?
-
-    if [ $EXIT_CODE -eq 0 ]; then
-        echo -e "${GREEN}Update Successful.${NC}"
-    else
-        echo -e "${RED}Update Failed. Check logs.${NC}"
-    fi
-}
-
-main
+# --- 🏁 Exit Status & Reporting ---
+if [ $? -eq 0 ]; then
+    echo -e "${GREEN}✅ [SUCCESS] Terran update cycle completed successfully.${NC}"
+else
+    echo -e "${RED}❌ [FAIL] Terran update encountered errors. Check 📜 terran_watch.log${NC}"
+    exit 1
+fi
