@@ -1,0 +1,97 @@
+--- Session Start: Tue Feb 24 10:42:58 CST 2026 ---
+[0;32m📅 Virtual Environment activated.[0m
+[0;36mℹ️ Running Analysis Engine: rainfall_review.py[0m
+✅ [INIT] Local CoreService resolved: /home/reza/PycharmProjects/noaa/utilities
+🔍 Initializing Core Services... [Config: /home/reza/PycharmProjects/noaa/swpc/config.toml]
+✅ Configuration loaded successfully.
+📊 Analyzing 10-year seasonal trends for Station: GHCND:USW00053914
+📡 Connecting to MariaDB at raspbari5.parkcircus.org...
+📡 Cache miss/incomplete for 2026. Querying NOAA CDO API...
+❌ Error during historical fetch for 2026: <class 'method'> is not convertible to datetime, at position 0
+📡 Connecting to MariaDB at raspbari5.parkcircus.org...
+📡 Cache miss/incomplete for 2025. Querying NOAA CDO API...
+❌ Error during historical fetch for 2025: HTTPSConnectionPool(host='www.ncdc.noaa.gov', port=443): Read timed out. (read timeout=30)
+📡 Connecting to MariaDB at raspbari5.parkcircus.org...
+📡 Cache miss/incomplete for 2024. Querying NOAA CDO API...
+❌ Error during historical fetch for 2024: <class 'method'> is not convertible to datetime, at position 0
+📡 Connecting to MariaDB at raspbari5.parkcircus.org...
+📡 Cache miss/incomplete for 2023. Querying NOAA CDO API...
+❌ Error during historical fetch for 2023: <class 'method'> is not convertible to datetime, at position 0
+📡 Connecting to MariaDB at raspbari5.parkcircus.org...
+📡 Cache miss/incomplete for 2022. Querying NOAA CDO API...
+❌ Error during historical fetch for 2022: <class 'method'> is not convertible to datetime, at position 0
+📡 Connecting to MariaDB at raspbari5.parkcircus.org...
+📡 Cache miss/incomplete for 2021. Querying NOAA CDO API...
+❌ Error during historical fetch for 2021: <class 'method'> is not convertible to datetime, at position 0
+📡 Connecting to MariaDB at raspbari5.parkcircus.org...
+📡 Cache miss/incomplete for 2020. Querying NOAA CDO API...
+❌ Error during historical fetch for 2020: <class 'method'> is not convertible to datetime, at position 0
+📡 Connecting to MariaDB at raspbari5.parkcircus.org...
+📡 Cache miss/incomplete for 2019. Querying NOAA CDO API...
+❌ Error during historical fetch for 2019: <class 'method'> is not convertible to datetime, at position 0
+📡 Connecting to MariaDB at raspbari5.parkcircus.org...
+📡 Cache miss/incomplete for 2018. Querying NOAA CDO API...
+❌ Error during historical fetch for 2018: <class 'method'> is not convertible to datetime, at position 0
+📡 Connecting to MariaDB at raspbari5.parkcircus.org...
+📡 Cache miss/incomplete for 2017. Querying NOAA CDO API...
+❌ Error during historical fetch for 2017: <class 'method'> is not convertible to datetime, at position 0
+❌ Processing Aborted: No valid data found in Cache or API.
+[0;32m📅 Monthly Review Dispatched Successfully.[0m
+--- Session End: Success ---
+--- Session Start: Tue Feb 24 10:47:32 CST 2026 ---
+[0;32m📅 Virtual Environment activated.[0m
+[0;36mℹ️ Running Analysis Engine: rainfall_review.py[0m
+--- Session Start: Tue Feb 24 10:52:34 CST 2026 ---
+[0;32m📅 Virtual Environment activated.[0m
+[0;36mℹ️ Running Analysis Engine: rainfall_review.py[0m
+--- Session Start: Tue Feb 24 10:57:47 CST 2026 ---
+[0;32m📅 Virtual Environment activated.[0m
+[0;36mℹ️ Running Analysis Engine: rainfall_review.py[0m
+✅ [INIT] Local CoreService resolved: /home/reza/PycharmProjects/noaa/utilities
+📡 Cache miss/low density for 2026. Querying NOAA CDO...
+📡 Cache miss/low density for 2020. Querying NOAA CDO...
+📡 Cache miss/low density for 2019. Querying NOAA CDO...
+📡 Cache miss/low density for 2018. Querying NOAA CDO...
+📡 Cache miss/low density for 2017. Querying NOAA CDO...
+❌ [SMTP ERROR] Dispatch failed: 'host'
+[0;32m📅 Monthly Review Dispatched Successfully.[0m
+--- Session End: Success ---
+--- Session Start: Tue Feb 24 11:08:28 CST 2026 ---
+[0;32m📅 Virtual Environment activated.[0m
+[0;36mℹ️ Running Analysis Engine: rainfall_review.py[0m
+✅ [INIT] Local CoreService resolved: /home/reza/PycharmProjects/noaa/utilities
+✅ Configuration loaded: /home/reza/PycharmProjects/noaa/swpc/config.toml
+📊 Analyzing 10-year seasonal trends for Station: GHCND:USW00053914
+❌ Error during historical fetch for 2026: '<=' not supported between instances of 'method' and 'method'
+❌ Error during historical fetch for 2025: '<=' not supported between instances of 'method' and 'method'
+❌ Error during historical fetch for 2024: '<=' not supported between instances of 'method' and 'method'
+❌ Error during historical fetch for 2023: '<=' not supported between instances of 'method' and 'method'
+❌ Error during historical fetch for 2022: '<=' not supported between instances of 'method' and 'method'
+❌ Error during historical fetch for 2021: '<=' not supported between instances of 'method' and 'method'
+❌ Error during historical fetch for 2020: '<=' not supported between instances of 'method' and 'method'
+❌ Error during historical fetch for 2019: '<=' not supported between instances of 'method' and 'method'
+❌ Error during historical fetch for 2018: '<=' not supported between instances of 'method' and 'method'
+❌ Error during historical fetch for 2017: '<=' not supported between instances of 'method' and 'method'
+❌ Processing Aborted: No valid data found.
+[0;32m📅 Monthly Review Dispatched Successfully.[0m
+--- Session End: Success ---
+--- Session Start: Tue Feb 24 11:11:02 CST 2026 ---
+[0;32m📅 Virtual Environment activated.[0m
+[0;36mℹ️ Running Analysis Engine: rainfall_review.py[0m
+✅ [INIT] Local CoreService resolved: /home/reza/PycharmProjects/noaa/utilities
+✅ Configuration loaded: /home/reza/PycharmProjects/noaa/swpc/config.toml
+📊 Analyzing 10-year seasonal trends for Station: GHCND:USW00053914
+✅ [SUCCESS] Visual report generated: /home/reza/Videos/satellite/weather/data/rainfall_review_10y.png
+❌ [SMTP ERROR] Dispatch failed: [SSL: WRONG_VERSION_NUMBER] wrong version number (_ssl.c:1033)
+[0;32m📅 Monthly Review Dispatched Successfully.[0m
+--- Session End: Success ---
+--- Session Start: Tue Feb 24 11:13:25 CST 2026 ---
+[0;32m📅 Virtual Environment activated.[0m
+[0;36mℹ️ Running Analysis Engine: rainfall_review.py[0m
+✅ [INIT] Local CoreService resolved: /home/reza/PycharmProjects/noaa/utilities
+✅ Configuration loaded: /home/reza/PycharmProjects/noaa/swpc/config.toml
+📊 Analyzing 10-year seasonal trends for Station: GHCND:USW00053914
+✅ [SUCCESS] Visual report generated: /home/reza/Videos/satellite/weather/data/rainfall_review_10y.png
+✨ Email dispatched successfully.
+[0;32m📅 Monthly Review Dispatched Successfully.[0m
+--- Session End: Success ---

@@ -1,19 +1,29 @@
 #!/usr/bin/env python3
 """
 -------------------------------------------------------------------------------
-Name:           retrieve_goes.py
-Description:    Unified retrieval utility for GOES-East and GOES-West imagery.
-                Fetches high-resolution satellite data based on TOML targets.
-Version:        2.0.0
-Updated:        2026-02-06
-License:        MIT License
-Copyright:      (c) 2026 ParkCircus Productions; All Rights Reserved
--------------------------------------------------------------------------------
-Processing Workflow:
-1. Load global configuration from absolute path.
-2. Iterate through 'goes_targets' defined in config.toml.
-3. Fetch imagery via streaming requests to minimize memory footprint.
-4. Archive images to satellite-specific /images directories.
+🛰️ NAME          : retrieve_goes.py
+👤 AUTHOR        : Matha Goram / BeUlta Suite
+🔖 VERSION       : 2.2.0
+📅 UPDATED       : 2026-02-24
+📝 DESCRIPTION   : Unified retrieval utility for GOES-East and GOES-West.
+                   Standardizes nomenclature to goes_east and goes_west.
+
+🛠️ WORKFLOW      :
+    1. Load configuration from absolute path.
+    2. Initialize centralized logging in /goes/logs/.
+    3. Iterate through satellite targets defined in config.toml.
+    4. Stream imagery to respective /images subfolders.
+    5. Dispatch SMTP alerts on network or disk failures.
+
+📋 PREREQUISITES :
+    - Python 3.11+
+    - Valid 'goes_targets' array in swpc/config.toml
+    - Write access to /home/reza/Videos/satellite/goes/
+
+🖥️ INTERFACE     : CLI (Automated via cron or retrieve_goes.sh)
+⚠️ ERRORS        : SMTP alerts for 4xx/5xx HTTP errors and OS permission issues.
+⚖️ LICENSE       : MIT License (c) 2026 ParkCircus Productions
+📚 REFERENCES    : https://cdn.star.nesdis.noaa.gov/
 -------------------------------------------------------------------------------
 """
 
@@ -25,41 +35,28 @@ import smtplib
 import tomllib
 from email.message import EmailMessage
 
-# --- Configuration Constants ---
-# Using absolute path to ensure reliability across Cron and Manual execution
 CONFIG_PATH = "/home/reza/PycharmProjects/noaa/swpc/config.toml"
 
-try:
-    with open(CONFIG_PATH, "rb") as f:
-        config = tomllib.load(f)
-except FileNotFoundError:
-    print(f"Critical Error: Configuration not found at {CONFIG_PATH}")
-    exit(1)
+
+def setup_logging(config):
+    log_dir = config['goes']['log_dir']
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, "goes_operations.log")
+
+    logging.basicConfig(
+        filename=log_file,
+        level=logging.INFO,
+        format='%(asctime)s 🛰️ [%(levelname)s] %(message)s'
+    )
+    console = logging.StreamHandler()
+    console.setFormatter(logging.Formatter('%(asctime)s 🛰️ %(message)s'))
+    logging.getLogger('').addHandler(console)
 
 
-def setup_target_logging(target_name):
-    """Configures localized logging for each satellite target."""
-    # Maps name (goes-east) to its specific log directory
-    base_log_dir = f"/home/reza/Videos/satellite/noaa/{target_name}/logs"
-    os.makedirs(base_log_dir, exist_ok=True)
-
-    log_file = os.path.join(base_log_dir, f"{target_name}_retrieval.log")
-
-    logger = logging.getLogger(target_name)
-    if not logger.handlers:
-        handler = logging.FileHandler(log_file)
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-        logger.setLevel(logging.INFO)
-    return logger
-
-
-def send_alert(subject, body):
-    """Dispatches SMTP alerts for fetch failures."""
+def send_alert(config, subject, body):
     msg = EmailMessage()
     msg.set_content(body)
-    msg['Subject'] = f"GOES SYSTEM ALERT: {subject}"
+    msg['Subject'] = f"🛰️ [GOES-FETCH] Alert: {subject}"
     msg['From'] = config['smtp']['sender']
     msg['To'] = config['smtp']['receiver']
     try:
@@ -67,42 +64,41 @@ def send_alert(subject, body):
             server.starttls()
             server.login(config['smtp']['user'], config['smtp']['password'])
             server.send_message(msg)
-    except Exception:
-        pass  # Logging handled by target logger
-
-
-def retrieve_satellite_image(target):
-    """Fetches imagery and saves to the designated images/ directory."""
-    name = target['name']  # e.g., 'goes-east'
-    url = target['url']
-
-    # Enforced pathing structure
-    save_dir = f"/home/reza/Videos/satellite/noaa/{name}/images"
-    os.makedirs(save_dir, exist_ok=True)
-
-    logger = setup_target_logging(name)
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H%M%S")
-    filename = os.path.join(save_dir, f"{name}_{timestamp}.jpg")
-
-    try:
-        response = requests.get(url, stream=True, timeout=30)
-        if response.status_code == 200:
-            with open(filename, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    f.write(chunk)
-            logger.info(f"Successfully archived {name} image: {filename}")
-        else:
-            raise Exception(f"HTTP Status {response.status_code}")
     except Exception as e:
-        error_msg = f"Failed to retrieve {name}. Error: {str(e)}"
-        logger.error(error_msg)
-        send_alert(f"Fetch Failure - {name}", error_msg)
+        logging.error(f"❌ SMTP Failure: {e}")
 
 
 def main():
-    targets = config.get('goes_targets', [])
-    for target in targets:
-        retrieve_satellite_image(target)
+    try:
+        with open(CONFIG_PATH, "rb") as f:
+            config = tomllib.load(f)
+    except Exception as e:
+        print(f"❌ Config Load Failure: {e}")
+        return
+
+    setup_logging(config)
+    logging.info("🚀 Starting Unified GOES Ingest")
+
+    for target in config.get('goes_targets', []):
+        name = target['name']  # Expected: goes_east / goes_west
+        url = target['url']
+        save_dir = os.path.join(config['goes']['storage_root'], name, "images")
+        os.makedirs(save_dir, exist_ok=True)
+
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H%M%S")
+        filename = os.path.join(save_dir, f"{name}_{timestamp}.jpg")
+
+        try:
+            r = requests.get(url, timeout=30, stream=True)
+            r.raise_for_status()
+            with open(filename, 'wb') as f:
+                for chunk in r.iter_content(8192):
+                    f.write(chunk)
+            logging.info(f"✅ Archived {name} snapshot.")
+        except Exception as e:
+            msg = f"Failed to fetch {name}: {e}"
+            logging.error(f"❌ {msg}")
+            send_alert(config, name, msg)
 
 
 if __name__ == "__main__":

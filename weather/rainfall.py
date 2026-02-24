@@ -12,51 +12,59 @@
 import os
 import tomllib
 import requests
+import logging
 from datetime import datetime, timedelta
 
 
-def find_latest_data(config_path="../swpc/config.toml", max_search=14):
-    # 1. Load Config
-    with open(config_path, "rb") as f:
-        conf = tomllib.load(f)
+class RainfallFetcher:
+    def __init__(self):
+        self.base_dir = os.path.dirname(os.path.realpath(__file__))
+        self.config_path = os.path.join(self.base_dir, "../swpc/config.toml")
 
-    api_key = conf['noaa_api']['token']
-    station = conf['noaa_api']['station_id']
-    url = "https://www.ncdc.noaa.gov/cdo-web/api/v2/data"
+        # Load consolidated section
+        with open(self.config_path, "rb") as f:
+            config_data = tomllib.load(f)
+            self.params = config_data.get('rainfall', {})
 
-    print(f"--- Node 22: Searching for Latest Data for {station} ---")
+        self._setup_logging()
 
-    # 2. Loop backwards from today
-    for i in range(1, max_search + 1):
-        target_date = (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d')
+    def _setup_logging(self):
+        os.makedirs(self.params['log_dir'], exist_ok=True)
+        logging.basicConfig(
+            filename=os.path.join(self.params['log_dir'], "rainfall_fetcher.log"),
+            level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s'
+        )
 
-        params = {
+    def get_daily_rainfall(self):
+        lookback = self.params.get('default_lookback', 3)
+        target_date = (datetime.now() - timedelta(days=lookback)).strftime('%Y-%m-%d')
+
+        url = "https://www.ncdc.noaa.gov/cdo-web/api/v2/data"
+        headers = {'token': self.params['token']}
+        api_params = {
             'datasetid': 'GHCND',
-            'stationid': station,
+            'stationid': self.params['station_id'],
             'startdate': target_date,
             'enddate': target_date,
             'datatypeid': 'PRCP',
-            'units': 'standard',
+            'units': self.params['units'],
             'limit': 1
         }
 
+        print(f"[*] Node 22 Daily Fetch | Target: {target_date}")
         try:
-            response = requests.get(url, headers={'token': api_key}, params=params, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                if 'results' in data:
-                    val = data['results'][0]['value']
-                    print(f"✅ FOUND! Date: {target_date} | Value: {val} inches")
-                    print(f"📈 Current Lag for this station: {i} days.")
-                    return i, target_date
-                else:
-                    print(f"[-] No data for {target_date}...")
+            res = requests.get(url, headers=headers, params=api_params, timeout=self.params['timeout'])
+            res.raise_for_status()
+            data = res.json()
+            if 'results' in data:
+                val = data['results'][0]['value']
+                print(f"[SUCCESS] {target_date}: {val} {self.params['units']}")
+                logging.info(f"Fetched {val} for {target_date}")
+            else:
+                print(f"[INFO] No data for {target_date} yet.")
         except Exception as e:
-            print(f"[!] Error on {target_date}: {e}")
-
-    print(f"❌ No data found in the last {max_search} days. Station might be inactive.")
-    return None
+            print(f"[ERROR] {e}")
 
 
 if __name__ == "__main__":
-    find_latest_data()
+    RainfallFetcher().get_daily_rainfall()

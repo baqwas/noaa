@@ -21,3 +21,7 @@ paho-mqtt>=1.6.1
 
 pex
 pandas
+matplotlib
+core-service
+mariadb
+sqlalchemy

@@ -2,11 +2,10 @@
 """
 🌱 NAME          : terran_watch.py
 👤 AUTHOR        : Matha Goram / BeUlta Suite
-🔖 VERSION       : 1.1.0 (Unified & Iconified)
-📅 UPDATED       : 2026-02-10
-📝 DESCRIPTION   : Parallel monitoring for Collin County Land Use & NDVI trends.
-                   Uses NASA GIBS WMS for high-res terrestrial snapshots.
-⚖️ LICENSE       : MIT License (c) 2026 ParkCircus Productions
+🔖 VERSION       : 1.2.0 (Multi-Location Support)
+📅 UPDATED       : 2026-02-23
+📝 DESCRIPTION   : Parallel monitoring for TX County Land Use & NDVI trends.
+                   Supports Collin, Kaufman, and Harris County mapping.
 """
 
 import argparse
@@ -15,26 +14,27 @@ import logging
 import requests
 import tomllib
 from datetime import datetime, timedelta
+from pathlib import Path
 
-# --- 🎨 Standardized Logging with Icons ---
+
 def setup_logging(log_dir):
     os.makedirs(log_dir, exist_ok=True)
     log_path = os.path.join(log_dir, "terran_watch.log")
-    
-    # Using specific icons for log levels to assist in rapid auditing
     logging.basicConfig(
         filename=log_path,
         level=logging.INFO,
         format='%(asctime)s 🛰️ [%(levelname)s] %(message)s'
     )
-    # Console output for manual execution
     console = logging.StreamHandler()
     console.setLevel(logging.INFO)
     logging.getLogger('').addHandler(console)
 
-def fetch_gibs_image(config, layer, date_str):
+
+def fetch_gibs_image(bbox, layer, date_str):
     """Fetches a high-res snapshot for the defined BBox via WMS."""
     base_url = "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi"
+
+    # 📏 Resolution increased to 1600x1200 for Harris County detail
     params = {
         "SERVICE": "WMS",
         "VERSION": "1.1.1",
@@ -42,60 +42,68 @@ def fetch_gibs_image(config, layer, date_str):
         "LAYERS": layer,
         "FORMAT": "image/png",
         "TRANSPARENT": "true",
-        "BBOX": config['terran']['bbox'],
+        "BBOX": bbox,
         "SRS": "EPSG:4326",
-        "WIDTH": "1200",
-        "HEIGHT": "800",
+        "WIDTH": "1600",
+        "HEIGHT": "1200",
         "TIME": date_str
     }
     try:
-        response = requests.get(base_url, params=params, timeout=30)
+        # Increased timeout to 60s for the larger HD payload
+        response = requests.get(base_url, params=params, timeout=60)
         response.raise_for_status()
         return response.content
     except Exception as e:
         logging.error(f"❌ Layer {layer} fetch failed: {e}")
         return None
 
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", required=True)
+    parser.add_argument("--config", default="../swpc/config.toml", help="Path to config file")
     args = parser.parse_args()
 
-    # Load configuration using the standardized TOML parser
+    if not os.path.exists(args.config):
+        print(f"❌ Error: Configuration file '{args.config}' not found.")
+        return
+
     with open(args.config, "rb") as f:
         config = tomllib.load(f)
 
     setup_logging(config['terran']['log_dir'])
+    root = Path(config['terran']['instrument_root'])
 
-    # GIBS data usually has a 1-day latency; targeting 'yesterday'
     target_date = (datetime.now() - timedelta(days=1))
     date_str = target_date.strftime("%Y-%m-%d")
     file_tag = target_date.strftime("%Y%m%d")
 
-    root = config['terran']['instrument_root']
-    
-    logging.info(f"🚀 [START] Initiating Terran Ingest for {date_str}")
+    logging.info(f"🚀 [START] HD Multi-Layer Ingest for {date_str}")
 
-    for layer in config['terran']['layers']:
-        # Hierarchical Path: .../terran/LAYER_NAME/images/
-        img_dir = os.path.join(root, layer, "images")
-        os.makedirs(img_dir, exist_ok=True)
+    for loc in config['terran']['locations']:
+        loc_name = loc['name']
+        bbox = loc['bbox']
 
-        filename = f"{layer}_{file_tag}.png"
-        full_path = os.path.join(img_dir, filename)
+        logging.info(f"📍 Location: {loc_name.upper()}")
 
-        if os.path.exists(full_path):
-            logging.info(f"💤 [SKIP] {layer}: Frame already exists for {date_str}")
-            continue
+        for layer in config['terran']['layers']:
+            img_dir = root / loc_name / layer / "images"
+            img_dir.mkdir(parents=True, exist_ok=True)
 
-        content = fetch_gibs_image(config, layer, date_str)
-        if content:
-            with open(full_path, "wb") as f:
-                f.write(content)
-            logging.info(f"✅ [SUCCESS] Archived {layer} image.")
+            filename = f"{loc_name}_{layer}_{file_tag}.png"
+            full_path = img_dir / filename
 
-    logging.info(f"🏁 [FINISH] Terran cycle complete.")
+            if full_path.exists():
+                logging.info(f"💤 [SKIP] {loc_name} | {layer} exists.")
+                continue
+
+            content = fetch_gibs_image(bbox, layer, date_str)
+            if content:
+                with open(full_path, "wb") as f:
+                    f.write(content)
+                logging.info(f"✅ [SUCCESS] Archived {loc_name} {layer} (HD).")
+
+    logging.info(f"🏁 [FINISH] All HD layers processed.")
+
 
 if __name__ == "__main__":
     main()
-

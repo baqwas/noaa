@@ -1,30 +1,51 @@
 #!/usr/bin/env bash
-# -------------------------------------------------------------------------------
-# ⚠️ NAME          : alerts_texas.sh
-# 🔖 VERSION       : 1.1.0 (Iconified)
-# -------------------------------------------------------------------------------
+# ==============================================================================
+# 📦 NAME          : alerts_texas.sh
+# 🚀 DESCRIPTION   : Production wrapper for NWS Alert Ingestion.
+# 👤 AUTHOR        : Matha Goram / Gemini
+# 📅 VERSION       : 2.1.0
+# ==============================================================================
 
-PROJ_DIR="/home/reza/PycharmProjects/noaa"
-VENV_PATH="${PROJ_DIR}/.venv/bin/activate"
-PYTHON_SCRIPT="${PROJ_DIR}/weather/alerts_texas.py"
-LOG_FILE="/home/reza/Videos/satellite/noaa/logs/weather.log"
+# --- 🎨 Color Configuration & UI Icons ---
+CYN='\033[0;36m'; GRN='\033[0;32m'; RED='\033[0;31m'; NC='\033[0m'
+CHECK="📡"; ERROR="❌"; INFO="ℹ️"
 
-BLUE='\033[0;34m'; GREEN='\033[0;32m'; RED='\033[0;31m'; NC='\033[0m'
+# --- 📁 Path Resolution (Absolute) ---
+# Resolves paths relative to script location for Crontab compatibility
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+PY_SCRIPT="$SCRIPT_DIR/alerts_texas.py"
+VENV_PATH="$PROJECT_ROOT/.venv/bin/activate"
 
-echo -e "${BLUE}📡 [$(date +'%H:%M:%S')] Syncing Texas Alerts to MQTT Broker...${NC}"
+# Leverage log path from config.toml
+LOG_FILE="/home/reza/Videos/satellite/weather/logs/weather_alerts.log"
 
-if [ -f "$VENV_PATH" ]; then
-    source "$VENV_PATH"
-else
-    echo -e "${RED}❌ [ERROR] Venv not found at $VENV_PATH${NC}" | tee -a "$LOG_FILE"
-    exit 1
-fi
+echo -e "${CYN}====================================================${NC}"
+echo -e "${CYN}${INFO} Syncing Texas Alerts to MQTT Broker...${NC}"
+echo -e "${CYN}====================================================${NC}"
 
-python3 -u "$PYTHON_SCRIPT" >> "$LOG_FILE" 2>&1
+{
+    echo -e "--- Session Start: $(date) ---"
 
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✅ [SUCCESS] Alerts dispatched to raspbari7.${NC}"
-else
-    echo -e "${RED}❌ [FAIL] Dispatch failed. Check logs.${NC}"
-fi
+    if [ -f "$VENV_PATH" ]; then
+        source "$VENV_PATH"
+        echo -e "${GRN}✅ Virtual Environment activated.${NC}"
+    else
+        echo -e "${RED}${ERROR} CRITICAL: Virtual environment not found.${NC}"
+        exit 1
+    fi
+
+    # Execute with unbuffered output for real-time logging
+    python3 -u "$PY_SCRIPT"
+
+    if [ $? -eq 0 ]; then
+        echo -e "${GRN}✅ [SUCCESS] Alerts processed.${NC}"
+        echo -e "--- Session End: Success ---"
+    else
+        echo -e "${RED}${ERROR} [FAIL] Dispatch encountered errors.${NC}"
+        echo -e "--- Session End: Failure ---"
+        exit 1
+    fi
+} | tee -a "$LOG_FILE"
+echo -e "${CYN}====================================================${NC}"
 
