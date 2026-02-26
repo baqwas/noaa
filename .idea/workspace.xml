@@ -4,41 +4,15 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b27444be-ebd4-47db-9af3-131b82b9d125" name="Changes" comment="Introduced rainfall data retrieval">
+    <list default="true" id="b27444be-ebd4-47db-9af3-131b82b9d125" name="Changes" comment="full fledged refactoring">
       <change afterPath="$PROJECT_DIR$/epic/.dashboard_state.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/terran/README.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/terran/log_rotate.sh" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/terran/terran_deploy.sh" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/terran/terran_report.sh" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/utilities/core_service.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/utilities/dashboard.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/utilities/dashboard.sh" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/utilities/verify_node.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/weather/rainfall_bulk.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/weather/rainfall_bulk.sh" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/weather/rainfall_review.log" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/weather/rainfall_review.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/weather/rainfall_review.sh" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/weather/rainfall_trend.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/noaa.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/noaa.iml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/goes/goes_watchdog.sh" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/epic/epic_dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/epic/epic_dashboard.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/epic/epic_fetcher.py" beforeDir="false" afterPath="$PROJECT_DIR$/epic/epic_fetcher.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/goes/compile_goes_daily.sh" beforeDir="false" afterPath="$PROJECT_DIR$/goes/compile_goes_daily.sh" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/goes/goes_daily_status.py" beforeDir="false" afterPath="$PROJECT_DIR$/goes/goes_daily_status.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/goes/retrieve_goes.py" beforeDir="false" afterPath="$PROJECT_DIR$/goes/retrieve_goes.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/goes/retrieve_goes16_east.log" beforeDir="false" afterPath="$PROJECT_DIR$/swpc/compile_all_daily.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/goes/verify_paths.sh" beforeDir="false" afterPath="$PROJECT_DIR$/goes/verify_paths.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/swpc/space_fetcher.py" beforeDir="false" afterPath="$PROJECT_DIR$/swpc/space_fetcher.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/terran/terran_trends.sh" beforeDir="false" afterPath="$PROJECT_DIR$/terran/terran_trends.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/terran/terran_watch.py" beforeDir="false" afterPath="$PROJECT_DIR$/terran/terran_watch.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/terran/terran_watch.sh" beforeDir="false" afterPath="$PROJECT_DIR$/terran/terran_watch.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/goes/retrieve_goes.sh" beforeDir="false" afterPath="$PROJECT_DIR$/goes/retrieve_goes.sh" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/weather/alerts_texas.py" beforeDir="false" afterPath="$PROJECT_DIR$/weather/alerts_texas.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/weather/alerts_texas.sh" beforeDir="false" afterPath="$PROJECT_DIR$/weather/alerts_texas.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/weather/rainfall.py" beforeDir="false" afterPath="$PROJECT_DIR$/weather/rainfall.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/weather/rainfall_trend.py" beforeDir="false" afterPath="$PROJECT_DIR$/weather/rainfall_trend.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -60,6 +34,18 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;baqwas&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;git@github.com:baqwas/noaa.git&quot;,
+    &quot;accountId&quot;: &quot;608d62b9-2c2d-42e5-a393-834bdfca17bd&quot;
+  }
+}</component>
   <component name="McpProjectServerCommands">
     <commands />
     <urls />
@@ -78,36 +64,36 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ASKED_ADD_EXTERNAL_FILES": "true",
-    "Python tests.Python tests in test_db.py.executor": "Run",
-    "Python.epic_dashboard.executor": "Run",
-    "Python.epic_fetcher.executor": "Run",
-    "Python.gibs_fetcher.executor": "Run",
-    "Python.goes_current.executor": "Run",
-    "Python.main.executor": "Run",
-    "Python.rainfall.executor": "Run",
-    "Python.rainfall_bulk.executor": "Run",
-    "Python.rainfall_review.executor": "Run",
-    "Python.rainfall_trend.executor": "Run",
-    "Python.retrieve_goes18_west.executor": "Run",
-    "Python.retrieve_latest.executor": "Run",
-    "Python.space_fetcher.executor": "Run",
-    "Python.terran_watch.executor": "Run",
-    "Python.test_db.executor": "Run",
-    "Python.verify_node.executor": "Run",
-    "RunOnceActivity.MCP Project settings loaded": "true",
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "SHELLCHECK.PATH": "/home/reza/.local/share/JetBrains/PyCharm2025.3/Shell Script/shellcheck",
-    "git-widget-placeholder": "master",
-    "last_opened_file_path": "/home/reza/PycharmProjects/noaa/goes_current.py",
-    "settings.editor.selected.configurable": "terminal"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_ADD_EXTERNAL_FILES&quot;: &quot;true&quot;,
+    &quot;Python tests.Python tests in test_db.py.executor&quot;: &quot;Run&quot;,
+    &quot;Python.epic_dashboard.executor&quot;: &quot;Run&quot;,
+    &quot;Python.epic_fetcher.executor&quot;: &quot;Run&quot;,
+    &quot;Python.gibs_fetcher.executor&quot;: &quot;Run&quot;,
+    &quot;Python.goes_current.executor&quot;: &quot;Run&quot;,
+    &quot;Python.main.executor&quot;: &quot;Run&quot;,
+    &quot;Python.rainfall.executor&quot;: &quot;Run&quot;,
+    &quot;Python.rainfall_bulk.executor&quot;: &quot;Run&quot;,
+    &quot;Python.rainfall_review.executor&quot;: &quot;Run&quot;,
+    &quot;Python.rainfall_trend.executor&quot;: &quot;Run&quot;,
+    &quot;Python.retrieve_goes18_west.executor&quot;: &quot;Run&quot;,
+    &quot;Python.retrieve_latest.executor&quot;: &quot;Run&quot;,
+    &quot;Python.space_fetcher.executor&quot;: &quot;Run&quot;,
+    &quot;Python.terran_watch.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_db.executor&quot;: &quot;Run&quot;,
+    &quot;Python.verify_node.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;SHELLCHECK.PATH&quot;: &quot;/home/reza/.local/share/JetBrains/PyCharm2025.3/Shell Script/shellcheck&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/home/reza/PycharmProjects/noaa/goes_current.py&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;terminal&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/weather" />
@@ -234,8 +220,8 @@
       <item itemvalue="Python.epic_dashboard" />
       <item itemvalue="Python.epic_fetcher" />
       <item itemvalue="Python.gibs_fetcher" />
-      <item itemvalue="Python.terran_watch" />
       <item itemvalue="Python.rainfall_bulk" />
+      <item itemvalue="Python.terran_watch" />
     </list>
     <recent_temporary>
       <list>
@@ -311,7 +297,15 @@
       <option name="project" value="LOCAL" />
       <updated>1770771419398</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="full fledged refactoring">
+      <option name="closed" value="true" />
+      <created>1771966880069</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1771966880069</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -332,7 +326,8 @@
     <MESSAGE value="First pass at EPIC data" />
     <MESSAGE value="Integrated alerts_texas into the solution" />
     <MESSAGE value="Introduced rainfall data retrieval" />
-    <option name="LAST_COMMIT_MESSAGE" value="Introduced rainfall data retrieval" />
+    <MESSAGE value="full fledged refactoring" />
+    <option name="LAST_COMMIT_MESSAGE" value="full fledged refactoring" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

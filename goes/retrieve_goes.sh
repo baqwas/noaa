@@ -37,7 +37,7 @@ source "$VENV"
 python3 "$PYTHON_SCRIPT"
 
 if [[ $? -eq 0 ]]; then
-    echo -e "${GREEN}[SUCCESS] Images retrieved. Check /home/reza/Videos/satellite/noaa/${NC}"
+    echo -e "${GREEN}[SUCCESS] Images retrieved. Check ${PROJ_ROOT}/goes/${NC}"
 else
     echo -e "${RED}[FAILURE] Check logs for specific error details.${NC}"
     exit 1

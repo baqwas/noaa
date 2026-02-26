@@ -55,7 +55,7 @@ class TexasAlertNode(CoreService):
     def on_publish(self, client, userdata, mid):
         """Callback triggered when the broker acknowledges a QoS 1 message."""
         self.acknowledged_count += 1
-        print(f"   📥 [DEBUG] Broker acknowledged message ID: {mid}")
+        # print(f"   📥 [DEBUG] Broker acknowledged message ID: {mid}")
 
     def fetch_and_publish(self) -> None:
         """📡 Synchronize NWS alerts with confirmed delivery logic."""
