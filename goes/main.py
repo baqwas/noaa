@@ -17,13 +17,13 @@ def main():
     # 1. Setup Argument Parser
     parser = argparse.ArgumentParser(description="GOES Satellite Image Downloader")
     parser.add_argument(
-        "--satellite", 
-        choices=["GOES16", "GOES18"], 
+        "--satellite",
+        choices=["GOES16", "GOES18"],
         default="GOES16",
         help="Satellite to use: GOES16 (East) or GOES18 (West)"
     )
     parser.add_argument(
-        "--log", 
+        "--log",
         dest="loglevel",
         help="Set logging level (DEBUG, INFO, WARNING, ERROR)"
     )
@@ -42,7 +42,7 @@ def main():
     # Priority: Command line > Config file > Default (INFO)
     default_log = config.get('settings', {}).get('logging_level', 'INFO')
     numeric_level = getattr(logging, (args.loglevel or default_log).upper(), logging.INFO)
-    
+
     logging.basicConfig(
         level=numeric_level,
         format='%(asctime)s - %(levelname)s - %(message)s'
@@ -52,11 +52,11 @@ def main():
     # 4. Dynamic Variable Assignment
     satellite = args.satellite
     filename_prefix = satellite
-    
+
     # URL Logic
     url_template = config.get('network', {}).get('image_url_template', "")
     image_url = url_template.replace("{SATELLITE}", satellite)
-    
+
     # Path Logic
     desktop_path = config.get('settings', {}).get('desktop_path', "/home/chowkidar/projects/noaa/goes-east")
     if satellite == "GOES18":
@@ -80,7 +80,7 @@ def main():
         with open(output_filename, 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
-        
+
         logger.info(f"Successfully saved: {output_filename}")
 
     except RequestException as e:

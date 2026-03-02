@@ -64,4 +64,3 @@ All data is stored relative to `/home/reza/Videos/satellite/`:
 * **`/logs`**: Centralized execution and error traces for the specific instrument.
 
 ---
-

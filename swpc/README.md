@@ -83,7 +83,7 @@ This project is licensed under the MIT License. All data retrieved is sourced fr
 ## Troubleshooting Guide
 When an error occurs, the system will attempt to send an email notification. If the notification fails or the data is missing, use the table below to identify the culprit.
 
-### Error Diagnosis Matrix 
+### Error Diagnosis Matrix
 
 Component,Symptom,Possible Cause,Solution
 SMTP,ConnectionRefusedError,LAN SMTP server is down or port 587 is blocked.,Verify server status; check firewall rules for internal traffic.
@@ -108,7 +108,7 @@ Verification Commands
 
 You can run these manually to verify the environment is healthy:
 
-#### Test Python Dependencies: 
+#### Test Python Dependencies:
 
 ```bash
 python3 -c "import requests, tomllib; print('Environment OK')"
@@ -120,7 +120,7 @@ python3 -c "import requests, tomllib; print('Environment OK')"
 telnet your.smtp.server 587
 ```
 
-#### Test FFmpeg Version: 
+#### Test FFmpeg Version:
 
 ```bash
 ffmpeg -version
@@ -156,9 +156,9 @@ Create a new file at `/etc/logrotate.d/space-weather` with elevated privileges.
 
 * `create 0640`: Creates a fresh, empty log file after rotation with secure permissions.
 
-## Log Management 
+## Log Management
 
-The system uses `logrotate` to prevent log files from bloating. 
+The system uses `logrotate` to prevent log files from bloating.
 
 * **Active logs**: `space_fetcher.log` and `weekly_conversion.log`.
 
@@ -174,14 +174,14 @@ logrotate -f /etc/logrotate.d/space-weather
 Users can run the dashboard manually to ensure images are being collected and weekly videos are being generated.
 
 * **Command**: `python3 space_status.py`
-* **What to look for**: 
+* **What to look for**:
   * **Images**: This count should grow daily (approx +48 per day). If it exceeds 400-500, it indicates the `compile_weekly.sh` script has not run successfully.
   * **Archived Videos**: This should increment by 1 every Sunday.
   * **Storage**: If this turns Red, manual intervention is required to delete old archives or expand disk space.
 
 ### File Manifest
 
-Your project folder should now look like this: 
+Your project folder should now look like this:
 
 File,Role
 `config.toml`,Central settings and credentials.
@@ -193,12 +193,11 @@ File,Role
 
 
 
-## Final System Architecture 
+## Final System Architecture
 
-With log rotation in place, your system is now a fully self-sustaining loop. 
+With log rotation in place, your system is now a fully self-sustaining loop.
 
 Task,Frequency,Tool,Purpose
 Ingestion,30 Mins,Python / Cron,Fetch data & Check Disk
 Processing,Weekly,Bash / Cron,Create MP4 & Purge Frames
 Maintenance,Weekly,Logrotate,Compress & Rotate Logs
-

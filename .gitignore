@@ -81,4 +81,3 @@ epic/.*_state.json
 # Ignore local image storage (if accidentally mapped to project root)
 **/images/*.jpg
 **/images/*.png
-

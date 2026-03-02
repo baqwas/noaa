@@ -64,8 +64,8 @@ class RainfallReviewNode(CoreService):
             return
 
         query = f"""
-            SELECT record_date, value 
-            FROM rainfall_records 
+            SELECT record_date, value
+            FROM rainfall_records
             WHERE station_id = '{self.station_id}'
             AND record_date >= DATE_SUB(CURDATE(), INTERVAL 10 YEAR)
         """

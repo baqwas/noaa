@@ -95,7 +95,7 @@ jobs:
           TIMESTAMP=$(date +'%Y-%m-%d %H:%M UTC')
           DRIFT="${{ needs.spatial_audit.outputs.drift }}"
           NEW_LINE="_Last Health Check: $TIMESTAMP | Drift: $DRIFT km_"
-          
+
           # Replaces the line starting with _Last Health Check:
           sed -i "s|_Last Health Check:.*_|$NEW_LINE|" README.md
 

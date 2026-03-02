@@ -1,7 +1,7 @@
 #!/bin/bash
 # ==============================================================================
 # NAME          : setup_infrastructure.sh
-# DESCRIPTION   : Initializes the standardized directory tree for the 
+# DESCRIPTION   : Initializes the standardized directory tree for the
 #                 BeUlta Satellite & Weather Suite. Ensures audit compliance.
 #
 # AUTHOR        : Matha Goram
@@ -47,16 +47,16 @@ MODULES=(
 for entry in "${MODULES[@]}"; do
     project="${entry%%:*}"
     sub_categories="${entry#*:}"
-    
+
     # Convert comma-separated string to array
     IFS=',' read -ra ADDR <<< "$sub_categories"
-    
+
     for sub in "${ADDR[@]}"; do
         echo "📂 Setting up: ${project}/${sub}"
         mkdir -p "${BASE_DIR}/${project}/${sub}/images"
         mkdir -p "${BASE_DIR}/${project}/${sub}/videos"
     done
-    
+
     # Create centralized logs for each project
     mkdir -p "${BASE_DIR}/${project}/logs"
 done
@@ -67,4 +67,3 @@ chmod -R 755 "$BASE_DIR"
 echo "---"
 echo "✅ Infrastructure Setup Complete."
 echo "🛡️ Run './swpc/system_audit.sh' to verify state: PASSED"
-
