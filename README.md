@@ -4,6 +4,11 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Platform: Linux](https://img.shields.io/badge/platform-linux-lightgrey.svg)](https://www.linux.org/)
+![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg) 
+
+![Build Status](https://github.com/reza/noaa/actions/workflows/main.yml/badge.svg)
+![Last Commit](https://img.shields.io/github/last-commit/reza/noaa?color=orange)
+![Maintenance](https://img.shields.io/badge/Maintenace-Weekly-green)
 
 ---
 
