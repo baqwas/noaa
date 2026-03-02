@@ -6,9 +6,11 @@
 [![Platform: Linux](https://img.shields.io/badge/platform-linux-lightgrey.svg)](https://www.linux.org/)
 ![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg) 
 
-![Build Status](https://github.com/reza/noaa/actions/workflows/main.yml/badge.svg)
+![Build Status](https://github.com/baqwas/noaa/actions/workflows/main.yml/badge.svg)
 ![Last Commit](https://img.shields.io/github/last-commit/reza/noaa?color=orange)
 ![Maintenance](https://img.shields.io/badge/Maintenace-Weekly-green)
+![Repo Size](https://img.shields.io/github/repo-size/YOUR_USERNAME/noaa?color=success)
+![Status](https://img.shields.io/badge/System-Operational-green?style=flat-square)
 
 ---
 
