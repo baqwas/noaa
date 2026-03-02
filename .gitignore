@@ -2,7 +2,7 @@
 config.toml
 .toml/
 .env
-swpc/config.toml
+config.toml
 .idea/
 
 # Ignore all log files

@@ -10,7 +10,7 @@ from core_service import CoreService
 def verify_stack():
     print("🚀 Starting Stack Verification...")
     try:
-        service = CoreService(config_path="../swpc/config.toml")
+        service = CoreService(config_path="../config.toml")
         conn = service.get_db_connection()
 
         # Note: MariaDB connector uses .is_connected() check

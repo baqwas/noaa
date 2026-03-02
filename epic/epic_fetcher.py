@@ -1,163 +1,137 @@
 #!/usr/bin/env python3
 """
--------------------------------------------------------------------------------
-🌍 NAME          : epic_fetcher.py
+================================================================================
+🌍 MODULE        : epic_fetcher.py
+🚀 DESCRIPTION   : NASA DSCOVR EPIC Multi-Continental Ingest Engine.
+                   Calculates and archives "Solar Noon" snapshots for
+                   Americas, EMEA, and APAC regions using CoreService.
 👤 AUTHOR        : Matha Goram / BeUlta Suite
-🔖 VERSION       : 1.3.0
-📅 UPDATED       : 2026-02-23
-📝 DESCRIPTION   : Professional-grade ingest tool for DSCOVR EPIC imagery.
-                   Centered on major continents to track global trends.
-🛠️ WORKFLOW      :
-    1. Initialize argparse with optional config path and default fallback.
-    2. Parse TOML configuration for storage and API endpoints.
-    3. Query NASA EPIC 'natural' API for latest metadata.
-    4. Identify frames closest to target longitudes for specific continents.
-    5. Download and archive high-res PNGs to the media partition.
-    6. Log all activity and dispatch SMTP alerts on critical failure.
-
-🖥️ INTERFACE     : CLI via argparse (Optional: --config)
-⚠️ ERRORS        : Comprehensive exception handling with log-to-file and email alerts.
+🔖 VERSION       : 1.8.0 (CoreService Integration)
+📅 UPDATED       : 2026-03-01
 ⚖️ LICENSE       : MIT License (c) 2026 ParkCircus Productions
-📚 REFERENCES    : https://epic.gsfc.nasa.gov/about/api
--------------------------------------------------------------------------------
+================================================================================
+📋 WORKFLOW PROCESSING:
+    1. 🛡️  Load CoreService (Config, SMTP, and Environment).
+    2. 📡  Query NASA EPIC 'Natural' Color API for latest metadata.
+    3. 📍  Mapping: Match target longitudes to centroid coordinates.
+    4. 📥  Idempotent Download: Skip existing frames; archive new imagery.
+    5. 📧  Alerting: Dispatch SMTP failure reports via CoreService.
+================================================================================
 """
 
-import argparse
 import os
+import sys
 import logging
 import requests
-import tomllib
-import smtplib
+import importlib.util
 from datetime import datetime
-from email.message import EmailMessage
+from pathlib import Path
 
-# --- 📍 Constants & Geometries ---
-# Centering longitudes to capture "Noon" snapshots for each region
-CONTINENT_LONGITUDES = {
-    "Americas": -80.0,
-    "Africa_Europe": 15.0,
-    "Asia_Australia": 120.0
+# --- 📁 Absolute File Import (Conflict Resolution) ---
+SCRIPT_DIR = Path(__file__).parent.resolve()
+PROJ_ROOT = SCRIPT_DIR.parent
+CORE_PATH = PROJ_ROOT / "utilities" / "core_service.py"
+
+if not CORE_PATH.exists():
+    print(f"❌ Critical: core_service.py not found at {CORE_PATH}")
+    sys.exit(1)
+
+spec = importlib.util.spec_from_file_location("core_service_local", CORE_PATH)
+core_mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(core_mod)
+
+# --- 🛠️ Instantiate Core Service ---
+service = core_mod.CoreService(config_path="../config.toml")
+config = service.config
+
+# --- 🛰️ Target Coordinates (Longitude for Solar Noon) ---
+CONTINENTS = {
+    "Americas": -95.0,  # Central US/Mexico
+    "Africa_Europe": 15.0,  # Central European Time
+    "Asia_Australia": 120.0  # East Asia / Western Australia
 }
 
+# --- 🎨 Colors ---
+C_YELLOW = '\033[1;33m';
+C_RED = '\033[0;31m';
+C_GREEN = '\033[0;32m';
+C_NC = '\033[0m'
 
-def setup_professional_logging(log_dir):
-    """Initializes iconified logging in the media partition."""
-    os.makedirs(log_dir, exist_ok=True)
-    log_path = os.path.join(log_dir, "epic_fetcher.log")
 
+def setup_logging(cfg):
+    """Initializes logging based on epic configuration."""
+    log_path = cfg.get('epic', {}).get('log_dir', SCRIPT_DIR / "logs")
+    log_dir = Path(log_path)
+    log_dir.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(
-        filename=log_path,
+        filename=log_dir / "epic_fetcher.log",
         level=logging.INFO,
-        format='%(asctime)s 🛰️ [%(levelname)s] %(message)s'
+        format='%(asctime)s - %(levelname)s - %(message)s'
     )
-    # Console handler for real-time terminal feedback
-    console = logging.StreamHandler()
-    console.setFormatter(logging.Formatter('%(asctime)s 🛰️ %(message)s'))
-    logging.getLogger('').addHandler(console)
 
 
-def send_alert(config, subject, body):
-    """Dispatches critical failure notifications via SMTP."""
-    msg = EmailMessage()
-    msg.set_content(body)
-    msg['Subject'] = f"🚨 [EPIC-FETCHER] ALERT: {subject}"
-    msg['From'] = config['smtp']['sender']
-    msg['To'] = config['smtp']['receiver']
-
-    try:
-        with smtplib.SMTP(config['smtp']['server'], config['smtp']['port']) as server:
-            server.starttls()
-            server.login(config['smtp']['user'], config['smtp']['password'])
-            server.send_message(msg)
-    except Exception as e:
-        logging.error(f"❌ Critical SMTP Failure: Unable to send alert. Error: {e}")
+def get_best_frame(metadata: list, target_lon: float) -> dict:
+    """Calculates the frame with the smallest longitudinal delta to target."""
+    return min(metadata, key=lambda x: abs(x['centroid_coordinates']['lon'] - target_lon))
 
 
 def main():
-    # --- 🛠️ User Interface ---
-    # Determine the script directory to build a reliable default path
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    default_config = os.path.join(script_dir, "../swpc/config.toml")
+    setup_logging(config)
+    print(f"{C_YELLOW}🚀 [INIT] Starting NASA EPIC Sync: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{C_NC}")
 
-    parser = argparse.ArgumentParser(description="NASA EPIC Image Ingest Tool")
-    # --config is now optional with a default relative path
-    parser.add_argument(
-        "--config",
-        default=default_config,
-        help=f"Path to config.toml (default: {default_config})"
-    )
-    args = parser.parse_args()
-
-    # --- ⚙️ Config Loading ---
-    try:
-        with open(args.config, "rb") as f:
-            config = tomllib.load(f)
-    except FileNotFoundError:
-        print(f"❌ Configuration file not found at: {args.config}")
-        return
-    except Exception as e:
-        print(f"❌ Failed to parse config: {e}")
-        return
-
-    # Initialize logging using the directory specified in the config
-    setup_professional_logging(config['epic']['log_dir'])
-    storage_root = config['epic']['storage_root']
-
-    logging.info("🚀 [START] Initiating EPIC Ingest Cycle")
+    epic_cfg = config.get('epic', {})
+    storage_root = Path(epic_cfg.get('instrument_root', '/home/reza/Videos/satellite/epic'))
 
     try:
-        # --- 📡 API Query ---
-        logging.info("🔗 Querying NASA EPIC Metadata...")
-        response = requests.get(config['epic']['api_url'], timeout=30)
+        # 1. Fetch Metadata from NASA
+        api_url = "https://epic.gsfc.nasa.gov/api/natural"
+        response = requests.get(api_url, timeout=30)
         response.raise_for_status()
-        data = response.json()
+        metadata = response.json()
 
-        if not data:
-            logging.warning("💤 No new EPIC imagery available at this time.")
+        if not metadata:
+            print("⚠️ [IDLE] No new metadata returned from NASA API.")
             return
 
-        # --- 🔄 Processing Workflow ---
-        for continent, target_lon in CONTINENT_LONGITUDES.items():
-            # Select the frame closest to the continent's center
-            best_frame = min(data, key=lambda x: abs(x['centroid_coordinates']['lon'] - target_lon))
+        # 2. Process Geographical Targets
+        for continent, lon in CONTINENTS.items():
+            frame = get_best_frame(metadata, lon)
+            img_id = frame['image']
+            # Convert date 2026-03-01 to URL path 2026/03/01
+            date_path = frame['date'].split(" ")[0].replace("-", "/")
 
-            image_name = best_frame['image']
-            date_obj = datetime.strptime(best_frame['date'], "%Y-%m-%d %H:%M:%S")
-            date_path = date_obj.strftime("%Y/%m/%d")
+            img_dir = storage_root / continent / "images"
+            img_dir.mkdir(parents=True, exist_ok=True)
+            save_path = img_dir / f"{img_id}.png"
 
-            # Organize by Continent: /Videos/satellite/epic/Americas/images/
-            img_dir = os.path.join(storage_root, continent, "images")
-            os.makedirs(img_dir, exist_ok=True)
-
-            save_path = os.path.join(img_dir, f"{continent}_{date_obj.strftime('%Y%m%d')}.png")
-
-            if os.path.exists(save_path):
-                logging.info(f"⏭️  [SKIP] {continent}: Snapshot already archived.")
+            if save_path.exists():
+                print(f"⏭️  {continent:.<25} Already cached ({img_id})")
                 continue
 
-            # --- ⬇️ Download Logic ---
-            download_url = f"{config['epic']['archive_base']}/{date_path}/png/{image_name}.png"
-            logging.info(f"📥 Fetching {continent} ({date_obj.strftime('%Y-%m-%d')})...")
+            # 3. Download Logic
+            dl_url = f"https://epic.gsfc.nasa.gov/archive/natural/{date_path}/png/{img_id}.png"
+            print(f"📥 {continent:.<25} Fetching frame {img_id}... ", end="", flush=True)
 
-            img_res = requests.get(download_url, stream=True, timeout=60)
-            img_res.raise_for_status()
+            img_data = requests.get(dl_url, timeout=60)
+            img_data.raise_for_status()
 
             with open(save_path, 'wb') as f:
-                for chunk in img_res.iter_content(8192):  # Efficient chunking for high-res PNGs
-                    f.write(chunk)
+                f.write(img_data.content)
 
-            logging.info(f"✅ [SUCCESS] Archived {continent} imagery.")
+            print(f"{C_GREEN}[OK]{C_NC}")
+            logging.info(f"✅ Archived {continent} frame: {img_id}")
 
-    except requests.exceptions.RequestException as e:
-        error_msg = f"Network failure during API communication: {e}"
-        logging.error(f"❌ {error_msg}")
-        send_alert(config, "Network Error", error_msg)
     except Exception as e:
-        error_msg = f"Unexpected runtime exception: {str(e)}"
-        logging.error(f"❌ {error_msg}")
-        send_alert(config, "System Error", error_msg)
-    finally:
-        logging.info("🏁 [FINISH] EPIC Ingest cycle complete.")
+        err_msg = f"❌ [RUNTIME ERROR] EPIC Ingest failed: {e}"
+        print(f"{C_RED}{err_msg}{C_NC}")
+        logging.error(err_msg)
+
+        # Dispatch alerqt via CoreService SMTP
+        service.send_email(
+            subject="🛰️ EPIC Engine Alert",
+            body=f"Critical failure in EPIC ingest logic.\nTimestamp: {datetime.now()}\nError: {e}"
+        )
+        sys.exit(1)
 
 
 if __name__ == "__main__":

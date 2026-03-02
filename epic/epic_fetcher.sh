@@ -1,43 +1,62 @@
 #!/usr/bin/env bash
-# -------------------------------------------------------------------------------
-# Name:           epic_fetcher.sh
-# Author:         Matha Goram
-# Version:        1.0.0
-# Updated:        2026-02-06
-# Description:    Production wrapper for epic_fetcher.py. Manages environment
-#                 activation and passes absolute config paths.
-# License:        MIT License
-# Copyright:      (c) 2026 ParkCircus Productions; All Rights Reserved
-# -------------------------------------------------------------------------------
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-# -------------------------------------------------------------------------------
+# ==============================================================================
+# 🚀 NAME          : epic_fetcher.sh
+# 👤 AUTHOR        : Matha Goram
+# 🔖 VERSION       : 1.5.0
+# 📝 DESCRIPTION   : Orchestration wrapper for the EPIC DSCOVR ingest engine.
+#                    Manages environment sourcing and error-trapping.
+# ------------------------------------------------------------------------------
+# 🛠️  WORKFLOW      :
+#    1. 🛠️  Resolve Project Root from script location.
+#    2. 🔍  Validate Python Virtual Environment & script existence.
+#    3. 🧪  Source VENV to ensure dependencies (requests, dotenv) are met.
+#    4. 📥  Execute epic_fetcher.py and log output to the archive root.
+#
+# 📋 PREREQUISITES :
+#    - Python 3.11+ Virtual Environment at ../.venv
+#    - Valid config.toml at project root.
+#
+# 📜 LICENSE       : MIT License
+# ==============================================================================
 
-PROJ_ROOT="/home/reza/PycharmProjects/noaa"
+# --- 🖥️ DESKTOP NOTIFICATION SUPPORT (CRON COMPATIBILITY) ---
+# Cron doesn't know about your desktop. We must point it to your session.
+export DISPLAY=:0
+export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus"
+
+# --- ANSI Color Palette ---
+RED='\033[0;31m'; GREEN='\033[0;32m'; BLUE='\033[0;34m'; NC='\033[0m'
+
+# --- Dynamic Path Resolution ---
+SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
+PROJ_ROOT=$(dirname "$SCRIPT_DIR")
 VENV="${PROJ_ROOT}/.venv/bin/activate"
-CONFIG="${PROJ_ROOT}/swpc/config.toml"
-SCRIPT="${PROJ_ROOT}/epic/epic_fetcher.py"
+PYTHON_SCRIPT="${SCRIPT_DIR}/epic_fetcher.py"
+LOG_DIR="/home/reza/Videos/satellite/epic/logs"
 
-BLUE='\033[0;34m'; GREEN='\033[0;32m'; NC='\033[0m'
+# Ensure log directory exists
+mkdir -p "$LOG_DIR"
+LOG_FILE="${LOG_DIR}/fetch_$(date +%Y%m).log"
 
-echo -e "${BLUE}[$(date)] Starting EPIC Ingest...${NC}"
+echo -e "${BLUE}🌍 [$(date '+%Y-%m-%d %H:%M:%S')] Initializing EPIC Ingest Cycle...${NC}"
 
+# 1. Validation Logic
 if [[ ! -f "$VENV" ]]; then
-    echo "Error: Virtual Environment missing."
+    echo -e "${RED}💀 CRITICAL: Virtual Environment missing at $VENV${NC}"
+    # Fallback alert if python can't run
+    notify-send "🛰️ EPIC Error" "VENV Missing. Check log: $LOG_FILE" --urgency=critical
     exit 1
 fi
 
+# 2. Execution logic
 source "$VENV"
-python3 "$SCRIPT" --config "$CONFIG"
+# Note: we use ${PIPESTATUS[0]} later to check the Python exit code specifically
+python3 "$PYTHON_SCRIPT" 2>&1 | tee -a "$LOG_FILE"
 
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}EPIC images updated successfully.${NC}"
+# 3. Final Status Handling
+if [ ${PIPESTATUS[0]} -eq 0 ]; then
+    echo -e "${GREEN}✅ EPIC Ingest cycle finished successfully.${NC}"
 else
-    echo -e "\033[0;31mEPIC Fetch failed. Check /Videos/satellite/epic/logs/epic_fetcher.log${NC}"
+    echo -e "${RED}❌ EPIC Ingest cycle failed. Check $LOG_FILE${NC}"
+    exit 1
 fi

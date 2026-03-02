@@ -1,108 +1,108 @@
-# !/usr/bin/env python3
+#!/usr/bin/env python3
 """
--------------------------------------------------------------------------------
-🛰️ NAME          : retrieve_goes.py
-👤 AUTHOR        : Matha Goram
-🔖 VERSION       : 2.3.1
-📅 UPDATED       : 2026-02-25
-📝 DESCRIPTION   : Retrieval utility for GOES-East and GOES-West.
-                   Standardizes nomenclature to goes_east and goes_west.
-
-🛠️ WORKFLOW      :
-    1. Load configuration from absolute path.
-    2. Initialize centralized logging in /goes/logs/.
-    3. Iterate through satellite targets defined in config.toml.
-    4. Stream imagery to respective /images subfolders.
-    5. Dispatch SMTP alerts on network or disk failures.
-
-🖥️ INTERFACE     : CLI (Automated via cron or retrieve_goes.sh)
-⚠️ ERRORS        : SMTP alerts for 4xx/5xx HTTP errors and OS permission issues.
-⚖️ LICENSE       : MIT License
-                   Copyright (c) 2026 ParkCircus Productions
-                   Permission is hereby granted, free of charge, to any person
-                   obtaining a copy of this software and associated documentation...
-📋 PREREQUISITES :
-    - Python 3.11+
-    - Valid 'goes_targets' array in swpc/config.toml
-    - Write access to /home/reza/Videos/satellite/goes/
--------------------------------------------------------------------------------
+================================================================================
+🛰️ MODULE        : retrieve_goes.py
+🚀 DESCRIPTION   : Retrieval utility for GOES-East and GOES-West imagery.
+👤 AUTHOR        : Matha Goram / BeUlta Suite
+🔖 VERSION       : 2.4.8 (TOML Array Alignment)
+📅 UPDATED       : 2026-03-01
+================================================================================
 """
 
-import datetime
-import logging
+import os
 import sys
+import logging
+import datetime
 import requests
-import smtplib
-import tomllib
+import importlib.util
 from pathlib import Path
-from email.message import EmailMessage
 
-# --- Professional Terminal Colors ---
-C_BLUE, C_GREEN, C_RED, C_YELLOW, C_NC = "\033[0;34m", "\033[0;32m", "\033[0;31m", "\033[1;33m", "\033[0m"
+# --- 📁 Absolute File Import (Conflict Resolution) ---
+SCRIPT_DIR = Path(__file__).parent.resolve()
+PROJ_ROOT = SCRIPT_DIR.parent
+CORE_PATH = PROJ_ROOT / "utilities" / "core_service.py"
 
-CONFIG_PATH = Path("/home/reza/PycharmProjects/noaa/swpc/config.toml")
+if not CORE_PATH.exists():
+    print(f"❌ Critical: core_service.py not found at {CORE_PATH}")
+    sys.exit(1)
 
-def setup_logging(config):
-    """Initializes logging using Path objects."""
-    log_dir = Path(config['goes']['log_dir'])
+spec = importlib.util.spec_from_file_location("core_service_local", CORE_PATH)
+core_mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(core_mod)
+
+# --- 🛠️ Instantiate Core Service ---
+# The CoreService class handles config loading from PROJ_ROOT/config.toml
+service = core_mod.CoreService(config_path="../config.toml")
+config = service.config
+
+# --- 🎨 Colors ---
+C_YELLOW = '\033[1;33m';
+C_RED = '\033[0;31m';
+C_GREEN = '\033[0;32m';
+C_NC = '\033[0m'
+
+
+def setup_logging(cfg):
+    # Use log_dir from [goes] block or default to script_dir/logs
+    log_path = cfg.get('goes', {}).get('log_dir', SCRIPT_DIR / "logs")
+    log_dir = Path(log_path)
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / "goes_operations.log"
 
     logging.basicConfig(
-        filename=str(log_file),
+        filename=log_dir / "goes_retrieval.log",
         level=logging.INFO,
-        format='%(asctime)s 🛰️ [%(levelname)s] %(message)s'
+        format='%(asctime)s - %(levelname)s - %(message)s'
     )
-    console = logging.StreamHandler()
-    console.setFormatter(logging.Formatter(f'{C_BLUE}%(asctime)s{C_NC} 🛰️ %(message)s'))
-    logging.getLogger('').addHandler(console)
 
-def send_alert(config, subject, body):
-    """Dispatches SMTP alerts."""
-    msg = EmailMessage()
-    msg.set_content(body)
-    msg['Subject'] = f"🛰️ [GOES-FETCH] Alert: {subject}"
-    msg['From'] = config['smtp']['sender']
-    msg['To'] = config['smtp']['receiver']
-    try:
-        with smtplib.SMTP(config['smtp']['server'], config['smtp']['port']) as server:
-            server.starttls()
-            server.login(config['smtp']['user'], config['smtp']['password'])
-            server.send_message(msg)
-    except Exception as e:
-        logging.error(f"{C_RED}❌ SMTP Failure: {e}{C_NC}")
 
 def main():
-    try:
-        with CONFIG_PATH.open("rb") as f:
-            config = tomllib.load(f)
-    except Exception as e:
-        print(f"{C_RED}❌ [CRITICAL] Config Load Failure: {e}{C_NC}")
-        sys.exit(1)
-
     setup_logging(config)
-    logging.info(f"{C_YELLOW}🚀 Starting Unified GOES Ingest{C_NC}")
+    print(f"{C_YELLOW}🚀 Starting GOES Ingest Sequence...{C_NC}")
 
-    storage_root = Path(config['goes']['storage_root'])
+    # 1. Access the top-level [[goes_targets]] array
+    targets = config.get('goes_targets', [])
 
-    for target in config.get('goes_targets', []):
-        name = target['name']
-        save_dir = storage_root / name / "images"
+    if not targets:
+        print(f"{C_RED}⚠️  [IDLE] No targets found. Key '[[goes_targets]]' appears empty or missing.{C_NC}")
+        # Debug: Print top level keys found in config
+        print(f"DEBUG: Available root keys: {list(config.keys())}")
+        return
+
+    for target in targets:
+        name = target.get('name', 'Unknown')
+        url = target.get('url')
+        # Priority 1: Use 'dir' from target. Priority 2: storage_root/name
+        target_base = target.get('dir')
+
+        if not url or not target_base:
+            print(f"⚠️  Skipping {name}: Missing URL or Directory in config.")
+            continue
+
+        save_dir = Path(target_base) / "images"
         save_dir.mkdir(parents=True, exist_ok=True)
 
         timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H%M%S")
         filepath = save_dir / f"{name}_{timestamp}.jpg"
 
+        print(f"📡 Fetching {name:.<15} ", end="", flush=True)
+
         try:
-            r = requests.get(target['url'], timeout=30, stream=True)
+            r = requests.get(url, timeout=30, stream=True)
             r.raise_for_status()
+
             with filepath.open('wb') as f:
                 for chunk in r.iter_content(8192):
                     f.write(chunk)
-            logging.info(f"{C_GREEN}✅ Archived {name} snapshot.{C_NC}")
+
+            print(f"{C_GREEN}[OK]{C_NC}")
+            logging.info(f"✅ Saved: {name} snapshot to {filepath.name}")
+
         except Exception as e:
-            logging.error(f"{C_RED}❌ Failed to fetch {name}: {e}{C_NC}")
-            send_alert(config, name, str(e))
+            print(f"{C_RED}[FAILED]{C_NC}")
+            err_msg = f"❌ [FAILURE] {name} retrieval error: {e}"
+            logging.error(err_msg)
+            service.send_report(f"🛰️ GOES INGEST ERROR\nTarget: {name}\nError: {e}")
+
 
 if __name__ == "__main__":
     main()

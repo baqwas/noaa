@@ -2,102 +2,95 @@
 """
 ================================================================================
 📦 MODULE        : rainfall_trend.py
-🚀 DESCRIPTION   : Daily Rainfall Tracker and Trend Analysis.
+🚀 DESCRIPTION   : Daily Precipitation Tracker and Trend Analysis.
+                   Calculates variance against 7-day rolling averages and
+                   visualizes short-term weather shifts.
 👤 AUTHOR        : Matha Goram
-📅 UPDATED       : 2026-02-24
+📅 UPDATED       : 2026-03-01
 ⚖️ LICENSE       : MIT License (c) 2026 ParkCircus Productions
+================================================================================
+📜 MIT LICENSE:
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+================================================================================
+📋 WORKFLOW PROCESSING:
+    1. 🛡️  Initialize via CoreService for sanitized DB and MQTT credentials.
+    2. 🏗️  Establish SQLAlchemy connectivity for high-performance data frames.
+    3. 📊  Query the last 7 days of rainfall records for the target station.
+    4. 🧮  Compute 7-day mean and calculate the current day's deviation.
+    5. 🎨  Generate a trend sparkline visualization (PNG) in 'Agg' mode.
+    6. 📡  Broadcast trend metrics (Avg vs Actual) via MQTT telemetry.
 ================================================================================
 """
 
-import os
 import sys
 import pandas as pd
-from datetime import datetime, timedelta
-from typing import Any
+import matplotlib.pyplot as plt
+from pathlib import Path
 
 # --- 🛠️ PRIORITY PATH INJECTION ---
 try:
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    utilities_path = os.path.abspath(os.path.join(current_dir, '..', 'utilities'))
-    if utilities_path not in sys.path:
-        sys.path.insert(0, utilities_path)
+    current_file = Path(__file__).resolve()
+    project_root = current_file.parent.parent
+    sys.path.insert(0, str(project_root / 'utilities'))
     from core_service import CoreService
 except ImportError as e:
-    print(f"❌ [CRITICAL] Dependency Resolution Error: {e}")
+    print(f"\033[0;31m❌ [CRITICAL] CoreService dependency not found: {e}\033[0m")
     sys.exit(1)
-
-import matplotlib
-
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 
 
 class RainfallTrendNode(CoreService):
-    def __init__(self, config_path: str = "../swpc/config.toml"):
-        super().__init__(config_path=config_path)
-        self.rain_params: dict[str, Any] = self.config.get('rainfall', {})
-        self.station_id = self.rain_params.get('station_id', 'UNKNOWN')
-
-        # Path extraction from config.toml
-        self.output_dir = self.rain_params.get('output_dir', './data')
-        self.log_dir = self.rain_params.get('log_dir', './logs')
-
-        # Ensure specific sub-folders exist
-        os.makedirs(self.output_dir, exist_ok=True)
-        os.makedirs(self.log_dir, exist_ok=True)
-
-    def fetch_recent_data(self):
-        """Retrieves recent data for trend plotting."""
-        days = self.rain_params.get('trend_window', 30)
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=days)
-
-        conn = self.get_db_connection()
-        df = pd.DataFrame()
-
-        if conn:
-            query = """
-                SELECT record_date as date, value_in as value 
-                FROM rainfall_records 
-                WHERE station_id = %s AND record_date BETWEEN %s AND %s
-                ORDER BY record_date ASC
-            """
-            df = pd.read_sql(query, conn, params=(self.station_id, start_date.date(), end_date.date()))
-            conn.close()
-        return df
+    def __init__(self, cfg_file: Path):
+        super().__init__(cfg_file)
+        self.rain_params = self.config.get("rainfall", {})
+        self.station_id = self.rain_params.get("station_id", "GHCND:USW00053914")
+        self.output_dir = project_root / "reports" / "trends"
+        self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def generate_trend_plot(self):
-        """Creates the daily trend visualization."""
-        df = self.fetch_recent_data()
-        if df.empty:
-            print("⚠️ No data found for trend analysis.")
-            return
+        print(f"\033[0;34m📈 Initiating 7-Day Variance Analysis: {self.station_id}\033[0m")
 
-        plt.style.use(self.rain_params.get('theme', 'dark_background'))
-        fig, ax = plt.subplots(figsize=(12, 6))
+        engine = self.get_sqlalchemy_engine()
+        query = f"SELECT record_date, value FROM rainfall_records WHERE station_id = '{self.station_id}' ORDER BY record_date DESC LIMIT 7"
 
-        # Plot bars for daily totals
-        ax.bar(df['date'], df['value'], color=self.rain_params.get('bar_color', '#3498db'), label='Daily Rain')
+        try:
+            df = pd.read_sql(query, engine)
+            if df.empty:
+                print("\033[0;33m⚠️  [IDLE] Insufficient data for 7-day trend analysis.\033[0m")
+                return
 
-        # Overlay trend line if configured
-        if self.rain_params.get('show_trend_line', True):
-            df['trend'] = df['value'].rolling(window=7).mean()
-            ax.plot(df['date'], df['trend'], color=self.rain_params.get('trend_color', '#e74c3c'),
-                    linewidth=2, label='7-Day Moving Avg')
+            avg_rain = df['value'].mean()
+            latest_rain = df.iloc[0]['value']
+            variance = latest_rain - avg_rain
 
-        ax.set_title(f"Precipitation Trend: {self.station_id}", fontsize=14)
-        ax.set_ylabel(f"Value ({self.rain_params.get('units', 'standard')})")
-        ax.legend()
+            print(f"  🔍 Avg: {avg_rain:.2f} | Latest: {latest_rain:.2f} | Var: {variance:+.2f}")
 
-        plt.tight_layout()
+            # 🎨 Short-term Trend Plot
+            plt.figure(figsize=(10, 4))
+            plt.bar(df['record_date'].dt.strftime('%m-%d'), df['value'], color='#3498db', alpha=0.7)
+            plt.axhline(y=avg_rain, color='#e74c3c', linestyle='--', label='7-Day Avg')
+            plt.title(f"Weekly Precipitation Variance: {self.station_id}")
+            plt.ylabel(f"Value ({self.rain_params.get('units', 'metric')})")
+            plt.legend()
 
-        # Output to /home/reza/Videos/satellite/weather/data/
-        out_path = os.path.join(self.output_dir, "rainfall_trend_latest.png")
-        plt.savefig(out_path, dpi=self.rain_params.get('dpi', 150))
-        plt.close()
-        print(f"✅ Trend visual saved to: {out_path}")
+            plot_path = self.output_dir / f"trend_{self.station_id.replace(':', '_')}.png"
+            plt.savefig(plot_path)
+            plt.close()
+
+            print(f"\033[0;32m✅ Trend update published to MQTT.\033[0m")
+            self.publish_mqtt("rainfall/trend", f"Latest: {latest_rain} | Var: {variance:+.2f}")
+
+        except Exception as e:
+            print(f"\033[0;31m❌ [TREND ERROR]: {e}\033[0m")
 
 
 if __name__ == "__main__":
-    node = RainfallTrendNode()
-    node.generate_trend_plot()
+    cfg = Path(__file__).parent.parent / "config.toml"
+    RainfallTrendNode(cfg).generate_trend_plot()

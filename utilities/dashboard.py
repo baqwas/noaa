@@ -31,7 +31,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'u
 from core_service import CoreService
 
 # Initialize Base Service
-core = CoreService(config_path="../swpc/config.toml")
+core = CoreService(config_path="../config.toml")
 
 st.set_page_config(page_title="Park Circus Weather Node", layout="wide")
 st.title(f"🚀 {core.rain_params['subject_prefix']} Environmental Dashboard")

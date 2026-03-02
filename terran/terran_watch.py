@@ -1,108 +1,153 @@
 #!/usr/bin/env python3
 """
-🌱 NAME          : terran_watch.py
+================================================================================
+🌱 MODULE        : terran_watch.py
+🚀 DESCRIPTION   : NASA GIBS (Global Imagery Browse Services) Ingest Engine.
+                   Monitors land use and NDVI trends across Texas counties.
 👤 AUTHOR        : Matha Goram / BeUlta Suite
-🔖 VERSION       : 1.2.0 (Multi-Location Support)
-📅 UPDATED       : 2026-02-23
-📝 DESCRIPTION   : Parallel monitoring for TX County Land Use & NDVI trends.
-                   Supports Collin, Kaufman, and Harris County mapping.
+🔖 VERSION       : 1.3.2 (Emulated Root Pathing)
+📅 UPDATED       : 2026-03-01
+⚖️ LICENSE       : MIT License (c) 2026 ParkCircus Productions
+================================================================================
+📋 WORKFLOW PROCESSING:
+    1. 🛡️  Path Resolution: Emulates EPIC fetcher logic to reach project root.
+    2. ⚙️  Core Service: Bootstraps shared infrastructure from /utilities.
+    3. 📍  Spatial Iteration: Processes BBoxes for Harris, Collin, & Kaufman.
+    4. 📥  Standardized Archive: Idempotent image storage and naming.
+    5. 📧  Failure Alerting: Dispatches SMTP reports via CoreService.
+================================================================================
 """
 
-import argparse
 import os
+import sys
 import logging
 import requests
-import tomllib
+import importlib.util
 from datetime import datetime, timedelta
 from pathlib import Path
 
+# --- 📁 Standardized Path Discovery (EPIC Fetcher Emulation) ---
+# SCRIPT_DIR = /noaa/terran
+SCRIPT_DIR = Path(__file__).parent.resolve()
+# PROJ_ROOT = /noaa
+PROJ_ROOT = SCRIPT_DIR.parent
+# CORE_PATH = /noaa/utilities/core_service.py
+CORE_PATH = PROJ_ROOT / "utilities" / "core_service.py"
 
-def setup_logging(log_dir):
-    os.makedirs(log_dir, exist_ok=True)
-    log_path = os.path.join(log_dir, "terran_watch.log")
+if not CORE_PATH.exists():
+    print(f"❌ Critical: core_service.py not found at {CORE_PATH}")
+    sys.exit(1)
+
+# Import CoreService from absolute path to prevent .venv/site-packages conflicts
+spec = importlib.util.spec_from_file_location("core_service_local", CORE_PATH)
+core_mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(core_mod)
+
+# --- 🛠️ Instantiate Core Service ---
+# Logic: Service is in /utilities, it looks UP one level for config.toml
+service = core_mod.CoreService(config_path="../config.toml")
+config = service.config
+
+# --- 🎨 Professional Terminal Colors ---
+C_YELLOW = '\033[1;33m';
+C_RED = '\033[0;31m';
+C_GREEN = '\033[0;32m';
+C_NC = '\033[0m'
+
+
+def setup_logging(cfg):
+    """Initializes logging based on paths defined in config.toml."""
+    log_dir = Path(cfg.get('terran', {}).get('log_dir', SCRIPT_DIR / "logs"))
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    log_path = log_dir / "terran_watch.log"
     logging.basicConfig(
         filename=log_path,
         level=logging.INFO,
         format='%(asctime)s 🛰️ [%(levelname)s] %(message)s'
     )
+    # Stream to console for interactive debugging
     console = logging.StreamHandler()
     console.setLevel(logging.INFO)
     logging.getLogger('').addHandler(console)
 
 
 def fetch_gibs_image(bbox, layer, date_str):
-    """Fetches a high-res snapshot for the defined BBox via WMS."""
+    """Queries NASA GIBS WMS API for a specific coordinate bounding box."""
     base_url = "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi"
-
-    # 📏 Resolution increased to 1600x1200 for Harris County detail
     params = {
         "SERVICE": "WMS",
         "VERSION": "1.1.1",
         "REQUEST": "GetMap",
+        "TIME": date_str,
         "LAYERS": layer,
+        "BBOX": bbox,
         "FORMAT": "image/png",
         "TRANSPARENT": "true",
-        "BBOX": bbox,
-        "SRS": "EPSG:4326",
         "WIDTH": "1600",
         "HEIGHT": "1200",
-        "TIME": date_str
+        "SRS": "EPSG:4326",
+        "STYLES": ""
     }
+
     try:
-        # Increased timeout to 60s for the larger HD payload
-        response = requests.get(base_url, params=params, timeout=60)
+        response = requests.get(base_url, params=params, timeout=45)
         response.raise_for_status()
         return response.content
     except Exception as e:
-        logging.error(f"❌ Layer {layer} fetch failed: {e}")
+        logging.error(f"📡 [GIBS ERROR] Failed to fetch {layer}: {e}")
         return None
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config", default="../swpc/config.toml", help="Path to config file")
-    args = parser.parse_args()
+    setup_logging(config)
+    print(f"{C_YELLOW}🚀 Starting Terran (GIBS) Ingest: {datetime.now().date()}{C_NC}")
 
-    if not os.path.exists(args.config):
-        print(f"❌ Error: Configuration file '{args.config}' not found.")
-        return
+    terran_cfg = config.get('terran', {})
+    root_storage = Path(terran_cfg.get('instrument_root', '/home/reza/Videos/satellite/terran'))
 
-    with open(args.config, "rb") as f:
-        config = tomllib.load(f)
-
-    setup_logging(config['terran']['log_dir'])
-    root = Path(config['terran']['instrument_root'])
-
+    # Process data for "Yesterday" to ensure GIBS tiles are fully processed
     target_date = (datetime.now() - timedelta(days=1))
     date_str = target_date.strftime("%Y-%m-%d")
     file_tag = target_date.strftime("%Y%m%d")
 
-    logging.info(f"🚀 [START] HD Multi-Layer Ingest for {date_str}")
+    try:
+        for loc in terran_cfg.get('locations', []):
+            loc_name = loc['name']
+            bbox = loc['bbox']
 
-    for loc in config['terran']['locations']:
-        loc_name = loc['name']
-        bbox = loc['bbox']
+            for layer in terran_cfg.get('layers', []):
+                # Path Pattern: storage_root / county / instrument / images /
+                img_dir = root_storage / loc_name / layer / "images"
+                img_dir.mkdir(parents=True, exist_ok=True)
 
-        logging.info(f"📍 Location: {loc_name.upper()}")
+                filename = f"{loc_name}_{layer}_{file_tag}.png"
+                full_path = img_dir / filename
 
-        for layer in config['terran']['layers']:
-            img_dir = root / loc_name / layer / "images"
-            img_dir.mkdir(parents=True, exist_ok=True)
+                if full_path.exists():
+                    logging.info(f"💤 [SKIP] {loc_name} | {layer} already exists.")
+                    continue
 
-            filename = f"{loc_name}_{layer}_{file_tag}.png"
-            full_path = img_dir / filename
+                print(f"📡 Fetching {loc_name:.<12} | {layer:.<15} ", end="", flush=True)
 
-            if full_path.exists():
-                logging.info(f"💤 [SKIP] {loc_name} | {layer} exists.")
-                continue
+                content = fetch_gibs_image(bbox, layer, date_str)
+                if content:
+                    with open(full_path, 'wb') as f:
+                        f.write(content)
+                    print(f"{C_GREEN}[OK]{C_NC}")
+                    logging.info(f"✅ Saved: {filename}")
+                else:
+                    print(f"{C_RED}[FAILED]{C_NC}")
 
-            content = fetch_gibs_image(bbox, layer, date_str)
-            if content:
-                with open(full_path, "wb") as f:
-                    f.write(content)
-                logging.info(f"✅ [SUCCESS] Archived {loc_name} {layer} (HD).")
-
-    logging.info(f"🏁 [FINISH] All HD layers processed.")
+    except Exception as e:
+        err_msg = f"❌ [FATAL] Terran Engine Failure: {e}"
+        logging.critical(err_msg)
+        # Dispatch SMTP alert via the CoreService dispatcher
+        service.send_email(
+            subject="🌱 TERRAN WATCH ALERT",
+            body=f"Critical failure in GIBS ingest sequence.\nDate: {date_str}\nError: {e}"
+        )
+        sys.exit(1)
 
 
 if __name__ == "__main__":

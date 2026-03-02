@@ -25,3 +25,4 @@ matplotlib
 core-service
 mariadb
 sqlalchemy
+python-dotenv

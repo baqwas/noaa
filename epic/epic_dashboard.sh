@@ -1,87 +1,98 @@
 #!/usr/bin/env bash
-# -------------------------------------------------------------------------------
-# Name:           epic_dashboard.sh
-# Author:         Matha Goram
-# Version:        1.1.0
-# Updated:        2026-02-06
-# Description:    Enhanced wrapper for storage_dashboard.py. Adds logic to
-#                 compile daily images into monthly continental time-lapses
-#                 using ffmpeg and purges source images upon success.
-# License:        MIT License
-# Copyright:      (c) 2026 ParkCircus Productions; All Rights Reserved
-# -------------------------------------------------------------------------------
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-# -------------------------------------------------------------------------------
+# ==============================================================================
+# 📊 NAME          : epic_dashboard.sh
+# 🚀 DESCRIPTION   : Orchestration Wrapper for EPIC Health Audit & Archival.
+#                   Manages environment, runs Python audit, and performs
+#                   monthly time-lapse consolidation.
+# 👤 AUTHOR        : Matha Goram
+# 🔖 VERSION       : 1.3.0
+# 📅 UPDATED       : 2026-03-01
+# ⚖️ LICENSE       : MIT License (c) 2026 ParkCircus Productions
+# ==============================================================================
 
-# --- Configuration ---
-PROJ_ROOT="/home/reza/PycharmProjects/noaa"
-VENV_PATH="${PROJ_ROOT}/.venv/bin/activate"
-REQUIRED_CONFIG="${PROJ_ROOT}/swpc/config.toml"
-PYTHON_SCRIPT="${PROJ_ROOT}/epic/epic_dashboard.py"
+# --- 🎨 ANSI Color Palette ---
+RED='\033[0;31m'; GRN='\033[0;32m'; YLW='\033[1;33m';
+BLU='\033[0;34m'; CYN='\033[0;36m'; NC='\033[0m'
 
-# ANSI Styling for terminal output
-GREEN='\033[0;32m'; BLUE='\033[0;34m'; RED='\033[0;31m'; NC='\033[0m'
+# --- 📁 Path Resolution ---
+SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
+PROJ_ROOT=$(dirname "$SCRIPT_DIR")
+VENV="${PROJ_ROOT}/.venv/bin/activate"
+PYTHON_AUDIT="${SCRIPT_DIR}/epic_dashboard.py"
 
-log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
-log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+# --- 🛰️ Config Extraction (Simple grep for shell speed) ---
+# We assume the standard root, but check config.toml if needed
+STORAGE_ROOT="/home/reza/Videos/satellite/epic"
+DATE_STAMP=$(date +%Y-%m)
+DAY_OF_MONTH=$(date +%d)
 
-create_timelapses() {
-    # Extract storage_root from config.toml (Standardized key)
-    local STORAGE_ROOT=$(grep "storage_root" "$REQUIRED_CONFIG" | cut -d'"' -f2 | head -n 1)
-    local DATE_STAMP=$(date +%Y-%m)
+log_info()    { echo -e "${BLU}📡 [INFO]${NC} $1"; }
+log_success() { echo -e "${GRN}✅ [OK]${NC}   $1"; }
+log_warn()    { echo -e "${YLW}⚠️  [WARN]${NC} $1"; }
+log_error()   { echo -e "${RED}❌ [FAIL]${NC} $1"; }
 
-    # Continent sub-folders to process
-    local CONTINENTS=("Americas" "Africa_Europe" "Asia_Australia")
+# --- 🎞️ Monthly Archival Engine ---
+# Logic: If it's the 1st of the month, compile the previous month's data.
+compile_archives() {
+    log_info "Running Monthly Archival Sequence for ${DATE_STAMP}..."
+    CONTINENTS=("Americas" "Africa_Europe" "Asia_Australia")
 
-    for continent in "${CONTINENTS[@]}"; do
-        local IMG_DIR="${STORAGE_ROOT}/${continent}/images"
-        local VID_DIR="${STORAGE_ROOT}/${continent}/videos"
-        local OUTPUT_FILE="${VID_DIR}/${continent}_${DATE_STAMP}.mp4"
+    for region in "${CONTINENTS[@]}"; do
+        IMG_DIR="${STORAGE_ROOT}/${region}/images"
+        VID_DIR="${STORAGE_ROOT}/${region}/videos"
+        OUT_FILE="${VID_DIR}/${region}_Archive_${DATE_STAMP}.mp4"
 
-        # Check if source directory exists and contains PNG images
         if [[ -d "$IMG_DIR" ]] && [ "$(ls -A "$IMG_DIR"/*.png 2>/dev/null)" ]; then
             mkdir -p "$VID_DIR"
-            log_info "Compiling monthly video for $continent..."
+            log_info "Compiling permanent archive for $region..."
 
-            # -nostdin prevents ffmpeg from breaking the bash loop
+            # Using 10fps for a smoother long-term review
             ffmpeg -nostdin -y -framerate 10 -pattern_type glob -i "${IMG_DIR}/*.png" \
-                   -c:v libx264 -pix_fmt yuv420p -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" \
-                   "$OUTPUT_FILE" &> /dev/null
+                   -c:v libx264 -pix_fmt yuv420p -crf 23 \
+                   -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" \
+                   "$OUT_FILE" &> /dev/null
 
             if [[ $? -eq 0 ]]; then
-                log_success "Created: $OUTPUT_FILE"
-                # Purge source images after successful render to reclaim space
-                rm "${IMG_DIR}"/*.png
+                log_success "Archive Created: $(basename "$OUT_FILE")"
+                # Optional: Uncomment to purge images after archival
+                # rm "$IMG_DIR"/*.png && log_info "Cleared image cache for $region."
             else
-                log_error "Failed to compile video for $continent"
+                log_error "Failed to render archive for $region."
             fi
-        else
-            log_info "No images found for $continent. Skipping."
         fi
     done
 }
 
 main() {
-    # Ensure VENV is available
-    if [[ -f "$VENV_PATH" ]]; then
-        source "$VENV_PATH"
+    echo -e "${CYN}====================================================${NC}"
+    echo -e "${CYN}📊  EPIC SYSTEM DASHBOARD & ARCHIVE ENGINE          ${NC}"
+    echo -e "${CYN}====================================================${NC}"
+
+    # 1. Environment Guard
+    if [[ ! -f "$VENV" ]]; then
+        log_error "Virtual Environment missing at $VENV"
+        exit 1
+    fi
+    source "$VENV"
+
+    # 2. Execute Python Health Audit (Dispatches Email)
+    if [[ -f "$PYTHON_AUDIT" ]]; then
+        python3 "$PYTHON_AUDIT"
+    else
+        log_error "Audit script not found: $PYTHON_AUDIT"
+        exit 1
     fi
 
-    # 1. Run stats reporting and email dispatch (Python)
-    if [[ -f "$PYTHON_SCRIPT" ]]; then
-        python3 "$PYTHON_SCRIPT" --config "$REQUIRED_CONFIG"
+    # 3. Monthly Maintenance Trigger
+    # Runs on the 1st of every month
+    if [[ "$DAY_OF_MONTH" == "01" ]]; then
+        compile_archives
+    else
+        log_info "Skipping monthly archival (Day of month: $DAY_OF_MONTH)."
     fi
 
-    # 2. Compile monthly continent videos and purge source files
-    create_timelapses
+    echo -e "${CYN}----------------------------------------------------${NC}"
+    log_success "Dashboard sequence complete."
 }
 
 main

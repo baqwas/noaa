@@ -1,53 +1,56 @@
 #!/bin/bash
 # -----------------------------------------------------------------------------
 # 🎞️ NAME          : compile_all_daily.sh
+# 🚀 DESCRIPTION   : Standardized Parallel Render Engine for Satellite Imagery.
+#                   Ensures output aligns with System Audit nomenclature.
 # 👤 AUTHOR        : Matha Goram
-# 🔖 VERSION       : 1.1.0 (Refactored for Path Alignment)
-# 📅 UPDATED       : 2026-02-25
-# 📝 DESCRIPTION   : Batch processes all satellite timelapses in parallel.
-#                   Consolidates Aurora and GOES rendering into one engine.
-#
-# 🛠️ WORKFLOW      :
-#    1. Define array of target directories and labels.
-#    2. Pass targets to xargs for parallel execution.
-#    3. Invoke process_timelapse.sh for each valid target.
-#
+# 📅 UPDATED       : 2026-03-01
 # ⚖️ LICENSE       : MIT License (c) 2026 ParkCircus Productions
 # -----------------------------------------------------------------------------
 
-# --- Configuration & Styling ---
+# --- ⚙️ Configuration ---
 BLUE='\033[0;34m'; GREEN='\033[0;32m'; RED='\033[0;31m'; NC='\033[0m'
 
 PROJ_DIR="/home/reza/PycharmProjects/noaa"
 PROC_SCRIPT="${PROJ_DIR}/swpc/process_timelapse.sh"
+SATELLITE_ROOT="/home/reza/Videos/satellite"
 
-# --- 🛰️ Target Registry ---
-# Note: Paths now match [goes.storage_root] from config.toml
+# --- 🛰️ Standardized Target Registry ---
+# Format: "Relative_Path_to_Instrument|Target_Name"
+# Logic: Audit expects videos in $SATELLITE_ROOT/$Relative_Path/$Target_Name/videos/
 TARGETS=(
-    "swpc/aurora/north/images|aurora_north"
-    "swpc/aurora/south/images|aurora_south"
-    "noaa/goes/goes_east/images|goes_east"
-    "noaa/goes/goes_west/images|goes_west"
+    "swpc|aurora_north"
+    "swpc|aurora_south"
+    "swpc|solar_suvi_304"
+    "swpc|cme_lasco_c3"
+    "noaa|goes_east"
+    "noaa|goes_west"
 )
 
-echo -e "${BLUE}>>> 🚀 Launching Parallel Render Engine <<<${NC}"
+echo -e "${BLUE}>>> 🚀 Launching Standardized Render Engine <<<${NC}"
 
-# Verify if the processor script exists before launching
 if [[ ! -f "$PROC_SCRIPT" ]]; then
     echo -e "${RED}❌ [FATAL] Processor script missing: $PROC_SCRIPT${NC}"
     exit 1
 fi
 
-# -P 2 runs two ffmpeg instances at once.
-printf "%s\n" "${TARGETS[@]}" | xargs -P 2 -I {} bash -c '
-    IFS="|" read -r dir label <<< "{}"
-    target_path="/home/reza/Videos/satellite/$dir"
+# Process targets
+for entry in "${TARGETS[@]}"; do
+    IFS="|" read -r REL_PATH TARGET_NAME <<< "$entry"
 
-    if [[ -d "$target_path" ]]; then
-        bash "'$PROC_SCRIPT'" "$target_path" "$label"
+    IMG_DIR="${SATELLITE_ROOT}/${REL_PATH}/${TARGET_NAME}/images"
+    VID_DIR="${SATELLITE_ROOT}/${REL_PATH}/${TARGET_NAME}/videos"
+
+    # Ensure the auditor's expected directory exists
+    mkdir -p "$VID_DIR"
+
+    if [ -d "$IMG_DIR" ] && [ "$(ls -A "$IMG_DIR")" ]; then
+        echo -e "${GREEN}🎥 Processing: ${TARGET_NAME}${NC}"
+        # Execute processor (Assuming process_timelapse.sh handles individual frames)
+        bash "$PROC_SCRIPT" "$IMG_DIR" "$VID_DIR" "$TARGET_NAME"
     else
-        echo -e "\033[0;31m⚠️  [SKIP] Path not found: $target_path\033[0m"
+        echo -e "${RED}⚠️  Skipping ${TARGET_NAME}: No source images in $IMG_DIR${NC}"
     fi
-'
+done
 
-echo -e "${GREEN}>>> ✅ All daily renders complete. <<<${NC}"
+echo -e "${BLUE}>>> 🏁 Daily Compilation Cycle Complete <<<${NC}"

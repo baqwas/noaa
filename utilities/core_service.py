@@ -5,7 +5,7 @@
 🚀 DESCRIPTION   : Centralized Utility Service for Database, SMTP, and MQTT.
                    Supports both legacy DBAPI2 and modern SQLAlchemy engines.
 👤 AUTHOR        : Matha Goram
-📅 UPDATED       : 2026-02-24
+📅 UPDATED       : 2026-03-01
 ⚖️ LICENSE       : MIT License (c) 2026 ParkCircus Productions
 ================================================================================
 """
@@ -20,6 +20,8 @@ from email.message import EmailMessage
 from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
 from typing import Optional, Any
+from string import Template
+from dotenv import load_dotenv
 
 
 class CoreService:
@@ -28,7 +30,7 @@ class CoreService:
     Central utility class providing infrastructure connectivity for NOAA nodes.
     """
 
-    def __init__(self, config_path: str = "../swpc/config.toml"):
+    def __init__(self, config_path: str = "../config.toml"):
         # Resolve absolute path relative to this script's location
         base_path = os.path.dirname(os.path.abspath(__file__))
         self.config_path = os.path.abspath(os.path.join(base_path, config_path))
@@ -43,13 +45,35 @@ class CoreService:
         self.rain_params = self.config.get('rainfall', {})
 
     def _load_config(self) -> None:
-        """🔍 Internal: Loads and validates the TOML configuration."""
+        """🔍 Internal: Loads, substitutes, and validates the TOML configuration."""
         if not os.path.exists(self.config_path):
             print(f"❌ [CRITICAL] Configuration file missing: {self.config_path}")
             sys.exit(1)
+
+        # 🛡️ Load environment variables from .env located next to config.toml
+        env_path = os.path.join(os.path.dirname(self.config_path), ".env")
+        load_dotenv(dotenv_path=env_path)
+
         try:
-            self.config = toml.load(self.config_path)
-            print(f"✅ Configuration loaded: {self.config_path}")
+            with open(self.config_path, "r") as f:
+                # Inject environment variables into the raw TOML string
+                raw_content = f.read()
+                substituted_content = Template(raw_content).safe_substitute(os.environ)
+                self.config = toml.loads(substituted_content)
+
+            # ⚙️ RELIABLE PORT CASTING
+            # Ensure port values are integers for all service blocks
+            for block in ['mariadb', 'mqtt', 'smtp']:
+                if block in self.config and 'port' in self.config[block]:
+                    try:
+                        self.config[block]['port'] = int(self.config[block]['port'])
+                    except (ValueError, TypeError):
+                        print(f"⚠️ [CONFIG] Invalid port in [{block}]. Defaulting to standard.")
+                        # Standard defaults if conversion fails
+                        defaults = {'mariadb': 3306, 'mqtt': 1883, 'smtp': 587}
+                        self.config[block]['port'] = defaults.get(block)
+
+            print(f"✅ Configuration loaded & sanitized: {self.config_path}")
         except Exception as e:
             print(f"❌ [CRITICAL] Failed to parse TOML: {e}")
             sys.exit(1)
@@ -78,8 +102,8 @@ class CoreService:
                 drivername="mariadb+mariadbconnector",
                 username=m['user'],
                 password=m['password'],
-                host=m['host'],
-                port=m['port'],
+                host=m.get('host', 'localhost'),
+                port=m.get('port', 3306),
                 database=m['database']
             )
             return create_engine(connection_url)
@@ -93,7 +117,6 @@ class CoreService:
         """
         ✨ SMTP DISPATCH (STARTTLS SECURED)
         Connects to the LAN SMTP server and upgrades the connection to TLS.
-        Fixes [SSL: WRONG_VERSION_NUMBER] by avoiding premature SSL wrapping.
         """
         msg = EmailMessage()
         prefix = self.rain_params.get('subject_prefix', 'Node22')
@@ -116,18 +139,16 @@ class CoreService:
 
         # 🔄 Reconciliation: Resolve the server address and port
         smtp_host = self.smtp_params.get('server') or self.smtp_params.get('host')
-        smtp_port = self.smtp_params.get('port', 587)  # Defaults to STARTTLS submission port
+        smtp_port = self.smtp_params.get('port', 587)
 
         if not smtp_host:
             print("❌ [SMTP ERROR] Missing 'server' key in [smtp] configuration.")
             return
 
         try:
-            # Connect via standard SMTP (plain text initial handshake)
             server = smtplib.SMTP(smtp_host, smtp_port, timeout=15)
             server.ehlo()
 
-            # Upgrade connection to TLS if supported by the server
             if server.has_extn('STARTTLS'):
                 server.starttls()
                 server.ehlo()
@@ -141,8 +162,10 @@ class CoreService:
 
     def publish_mqtt(self, topic_suffix: str, payload: str) -> None:
         """📡 MQTT TELEMETRY: Publishes script status to the network broker."""
-        host = self.mqtt_params.get('host')
+        # Check both 'broker' and 'host' keys for compatibility
+        host = self.mqtt_params.get('broker') or self.mqtt_params.get('host')
         if not host:
+            print("❌ [MQTT ERROR] No broker/host defined in config.")
             return
 
         prefix = self.rain_params.get('subject_prefix', 'Node22')

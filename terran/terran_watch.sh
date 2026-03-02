@@ -14,7 +14,7 @@ PROJ_ROOT="/home/reza/PycharmProjects/noaa"
 # Direct path to the python executable within the virtual environment
 PYTHON_BIN="${PROJ_ROOT}/.venv/bin/python3"
 # Ensure this path matches your actual config location (updated from swpc/ to terran/)
-CONFIG="${PROJ_ROOT}/terran/config.toml"
+CONFIG="${PROJ_ROOT}/config.toml"
 SCRIPT="${PROJ_ROOT}/terran/terran_watch.py"
 LOG_DIR="/home/reza/Videos/satellite/terran/logs"
 LOCKFILE="/tmp/terran_watch.lock"

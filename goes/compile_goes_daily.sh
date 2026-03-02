@@ -13,28 +13,33 @@
 #    5. Log all output to centralized goes_operations.log.
 # -----------------------------------------------------------------------------
 
-# --- Configuration & Styling ---
 BLUE='\033[0;34m'; GREEN='\033[0;32m'; RED='\033[0;31m'; NC='\033[0m'
+DATE_STAMP=$(date -d "yesterday" +%Y-%m-%d)
+BASE_ROOT="/home/reza/Videos/satellite/goes"
+SATELLITES=("goes_east" "goes_west")
 
-# --- Paths ---
-PROJ_ROOT="/home/reza/PycharmProjects/noaa"
-VENV="${PROJ_ROOT}/.venv/bin/activate"
-PYTHON_SCRIPT="${PROJ_ROOT}/goes/retrieve_goes.py"
+echo -e "${BLUE}[$(date)] Starting Daily Video Compilation for $DATE_STAMP...${NC}"
 
-echo -e "${BLUE}[$(date)] Starting GOES Retrieval Cycle...${NC}"
+for SAT in "${SATELLITES[@]}"; do
+    IMG_DIR="${BASE_ROOT}/${SAT}/images"
+    VID_DIR="${BASE_ROOT}/${SAT}/videos"
+    OUT_FILE="${VID_DIR}/${SAT}_${DATE_STAMP}.mp4"
 
-# Direct check for virtual environment existence
-if [[ ! -f "$VENV" ]]; then
-    echo -e "${RED}[ERROR] Virtual environment not found at $VENV${NC}"
-    exit 1
-fi
+    if [[ -d "$IMG_DIR" ]] && [[ $(ls -1 "$IMG_DIR"/*.jpg 2>/dev/null | wc -l) -gt 0 ]]; then
+        echo -e "${BLUE}🎥 Rendering ${SAT}...${NC}"
 
-source "$VENV"
+        # FFMPEG Command: Compiles images into 24fps MP4
+        ffmpeg -y -framerate 24 -pattern_type glob -i "${IMG_DIR}/*.jpg" \
+               -c:v libx264 -pix_fmt yuv420p -crf 23 "$OUT_FILE" &>/dev/null
 
-# Direct execution check
-if python3 "$PYTHON_SCRIPT"; then
-    echo -e "${GREEN}[SUCCESS] Images retrieved. Check /home/reza/Videos/satellite/goes/${NC}"
-else
-    echo -e "${RED}[FAILURE] Check logs for specific error details.${NC}"
-    exit 1
-fi
+        if [[ $? -eq 0 ]]; then
+            echo -e "${GREEN}✅ Success: $OUT_FILE${NC}"
+            # Optional: Move or purge images here to keep /images clean
+            # rm "$IMG_DIR"/*.jpg
+        else
+            echo -e "${RED}❌ Render Failed for $SAT${NC}"
+        fi
+    else
+        echo -e "${RED}⚠️ No images found for $SAT in $IMG_DIR${NC}"
+    fi
+done
