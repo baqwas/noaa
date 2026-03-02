@@ -1,0 +1,24 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace      # Removes extra spaces at end of lines
+      - id: end-of-file-fixer        # Ensures files end with a newline
+      - id: check-yaml               # Validates your workflow syntax
+      - id: check-added-large-files  # Prevents pushing giant data files (>500KB)
+
+  - repo: https://github.com/GitGuardian/ggshield
+    rev: v1.23.0
+    hooks:
+      - id: ggshield                # Local GitGuardian secret scan
+        stages: [commit]
+
+  - repo: local
+    hooks:
+      - id: spatial-audit
+        name: Local Spatial Integrity Check
+        entry: python utilities/check_spatial_audit.py
+        language: python
+        additional_dependencies: [numpy]
+        files: ^utilities/|data/    # Only runs if these folders change
+        pass_filenames: false

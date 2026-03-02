@@ -50,7 +50,7 @@ tar --exclude='.venv' \
 # --- 🏁 Exit Status ---
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✅ [SUCCESS] Backup archived to NAS: ${BOLD}${ARCHIVE_NAME}${NC}"
-    
+
     # Keep only the last 5 backups on the NAS to manage storage
     ls -t "${BACKUP_DIR}"/beulta_src_*.tar.gz | tail -n +6 | xargs rm -f 2>/dev/null
     echo -e "${BLUE}🧹 [CLEAN] Pruned old archives on NAS (keeping latest 5).${NC}"
@@ -58,4 +58,3 @@ else
     echo -e "${RED}❌ [FAIL] Backup failed. Check NAS permissions or network connection.${NC}"
     exit 1
 fi
-
