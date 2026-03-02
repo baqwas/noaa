@@ -6,12 +6,14 @@
 [![Platform: Linux](https://img.shields.io/badge/platform-linux-lightgrey.svg)](https://www.linux.org/)
 ![Repo Size](https://img.shields.io/github/repo-size/baqwas/noaa?color=success)
 
-![Last Commit](https://img.shields.io/github/last-commit/baqwas/noaa?color=orange)
+### 📊 Project Pulse
+[![Last Commit](https://img.shields.io/github/last-commit/baqwas/noaa?color=orange)](https://github.com/baqwas/noaa/commits/master)
 [![Security & Integrity Master](https://github.com/baqwas/noaa/actions/workflows/security_master.yml/badge.svg)](https://github.com/baqwas/noaa/actions/workflows/security_master.yml)
 ![Status](https://img.shields.io/badge/System-Operational-green?style=flat-square)
-![Maintenance](https://img.shields.io/badge/Maintenace-Weekly-green)
+![Maintenance](https://img.shields.io/badge/Maintenance-Weekly-green)
 
-
+### 🛰️ System Health
+_Last Health Check: AUTO | Drift: AUTO km_
 
 ---
 

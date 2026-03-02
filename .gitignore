@@ -3,6 +3,8 @@ config.toml
 .toml/
 .env
 .idea/
+.idea/workspace.xml
+
 
 # Ignore all log files
 logs/*.log
