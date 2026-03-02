@@ -7,7 +7,7 @@
 ![Repo Size](https://img.shields.io/github/repo-size/baqwas/noaa?color=success)
 
 ![Last Commit](https://img.shields.io/github/last-commit/baqwas/noaa?color=orange)
-![Build Status](https://github.com/baqwas/noaa/actions/workflows/gitguardian.yml/badge.svg)
+[![Security & Integrity Master](https://github.com/baqwas/noaa/actions/workflows/security_master.yml/badge.svg)](https://github.com/baqwas/noaa/actions/workflows/security_master.yml)
 ![Status](https://img.shields.io/badge/System-Operational-green?style=flat-square)
 ![Maintenance](https://img.shields.io/badge/Maintenace-Weekly-green)
 
