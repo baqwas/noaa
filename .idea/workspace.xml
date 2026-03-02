@@ -5,14 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b27444be-ebd4-47db-9af3-131b82b9d125" name="Changes" comment="full fledged refactoring">
-      <change afterPath="$PROJECT_DIR$/epic/.dashboard_state.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/goes/goes_watchdog.sh" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.env.example" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/utilities/alerts_vulnerable.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/utilities/check_spatial_audit.sh" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/utilities/show_qlog_summary.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/goes/compile_goes_daily.sh" beforeDir="false" afterPath="$PROJECT_DIR$/goes/compile_goes_daily.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/goes/goes_daily_status.py" beforeDir="false" afterPath="$PROJECT_DIR$/goes/goes_daily_status.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/goes/retrieve_goes.py" beforeDir="false" afterPath="$PROJECT_DIR$/goes/retrieve_goes.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/goes/retrieve_goes.sh" beforeDir="false" afterPath="$PROJECT_DIR$/goes/retrieve_goes.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/weather/alerts_texas.py" beforeDir="false" afterPath="$PROJECT_DIR$/weather/alerts_texas.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utilities/check_spatial_audit.py" beforeDir="false" afterPath="$PROJECT_DIR$/utilities/check_spatial_audit.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

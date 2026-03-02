@@ -1,0 +1,91 @@
+name: 🛡️ Security & Integrity Master
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  # --- JOB 1: SECRET SCANNING ---
+  secrets_scan:
+    name: GitGuardian Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: GitGuardian Scan
+        uses: GitGuardian/ggshield-action@v1.48.0
+        env:
+          GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
+
+  # --- JOB 2: SPATIAL INTEGRITY ---
+  spatial_audit:
+    name: Spatial Integrity Audit
+    runs-on: ubuntu-latest
+    needs: secrets_scan
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Dependencies
+        run: pip install numpy
+
+      - name: Execute Spatial Audit
+        run: python utilities/check_spatial_audit.py
+
+  # --- JOB 3: GENERATE REPORT ARTIFACT ---
+  generate_report:
+    name: Generate Security Artifact
+    runs-on: ubuntu-latest
+    needs: [secrets_scan, spatial_audit]
+    if: always() # Ensures report is generated even if previous jobs fail
+    steps:
+      - name: Create Report Summary
+        run: |
+          echo "===========================================" > security_report.txt
+          echo "🛡️ NOAA PROJECT SECURITY REPORT" >> security_report.txt
+          echo "Generated: $(date)" >> security_report.txt
+          echo "Run ID: ${{ github.run_id }}" >> security_report.txt
+          echo "===========================================" >> security_report.txt
+          echo "SECRET SCAN STATUS: ${{ needs.secrets_scan.result }}" >> security_report.txt
+          echo "SPATIAL AUDIT STATUS: ${{ needs.spatial_audit.result }}" >> security_report.txt
+          echo "===========================================" >> security_report.txt
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-integrity-report
+          path: security_report.txt
+          retention-days: 5
+
+  # --- JOB 4: WORKSPACE CLEANUP ---
+  cleanup_workspace:
+    name: Repository Sweep & Cleanup
+    runs-on: ubuntu-latest
+    needs: generate_report
+    if: always() # Always clean up, regardless of success or failure
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Remove Temporary Audit Artifacts
+        run: |
+          echo "🧹 Initiating Workspace Hygiene Sweep..."
+          # Remove local JSON logs and text reports created during the run
+          rm -f security_report.txt
+          rm -f logs/qlog_system_health.json
+          
+          # Optional: Clear out any python cache files
+          find . -type d -name "__pycache__" -exec rm -rf {} +
+          
+          echo "✅ Cleanup complete. Workspace is ready for next cycle."
