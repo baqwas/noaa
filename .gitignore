@@ -13,10 +13,14 @@ logs/*.gz
 data/
 **/archive/*.mp4
 
-# Ignore Python environment and cache
+### --- Python Specific ---
 __pycache__/
+*.py[cod]
+*$py.class
 *.pyc
 .venv/
+venv/
+env/
 
 ### --- System Files ---
 .DS_Store          # macOS specific
@@ -33,13 +37,11 @@ secrets.py
 auth.token
 *.log              # Ignore all log files
 
-### --- Python Specific ---
-__pycache__/
-*.py[cod]
-*$py.class
-venv/
-.venv/
-env/
+# --- 🔐 SECURITY & SECRETS ---
+.env
+config.toml
+**/*.json
+**/.fetch_state.json
 
 ### --- IDE / Editor Specific ---
 .vscode/           # Visual Studio Code settings
@@ -72,13 +74,13 @@ epic/.*_state.json
 **/logs/*.log
 .venv/
 
-# --- 🛰️ SATELLITE OPERATIONS ---
-# Ignore all log files in any sub-directory
-**/*.log
-
 # Ignore EPIC and GOES state trackers
 epic/.*_state.json
 **/.*_state.json
+
+# --- 🛰️ SATELLITE OPERATIONS ---
+# Ignore all log files in any sub-directory
+**/*.log
 
 # Ignore local image storage (if accidentally mapped to project root)
 **/images/*.jpg

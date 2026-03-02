@@ -1,42 +1,24 @@
 #!/usr/bin/env python3
 # ==============================================================================
-# 🛡️ AUDIT & COMPLIANCE DOCUMENTATION
+# 📊 QLOG DASHBOARD: SYSTEM HEALTH SUMMARY
 # ==============================================================================
-# SCRIPT NAME    : check_spatial_audit.py
-# VERSION        : 1.4.0 (Consolidated Edition)
+# SCRIPT NAME    : show_qlog_summary.py
+# VERSION        : 1.0.0
 # AUTHOR         : Matha Goram
-# LICENSE        : MIT License (c) 2026 ParkCircus Productions
-# PROJECT        : NASA NOAA Observation Data for Consumers
-# AUDIT CLASS    : GEO-SPATIAL-INTEGRITY-01 | SEC-COMPLIANCE-02
+# DESCRIPTION    : TUI (Terminal User Interface) for the System Harden Audit.
+#                  Displays Security, Hygiene, and Spatial status at a glance.
 #
-# DESCRIPTION:
-#   1. Pre-flight Security: Ensures no plain-text secrets are in environment.
-#   2. Spatial Integrity: Validates North Texas centroid relative to Lavon, TX.
-#
-# MIT LICENSE:
-#   Permission is hereby granted, free of charge, to any person obtaining a copy
-#   of this software and associated documentation files (the "Software"), to deal
-#   in the Software without restriction, including without limitation the rights
-#   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-#   copies of the Software, and to permit persons to whom the Software is
-#   furnished to do so, subject to the following conditions:
-#
-#   The above copyright notice and this permission notice shall be included in all
-#   copies or substantial portions of the Software.
-#
-# REFERENCES:
-#   1. Haversine Formula for Geodesic Distance
-#   2. ISO 19115: Geographic Information Metadata Standard
-#
-# RUNS:
-#   1. Whenever you modify your data ingestion parameters (e.g., changing
-#      the Overpass BBOX or swapping data providers) to ensure the new
-#      data source is correctly centered.
-#   2. When you add new counties to your data cluster, run it to verify
-#      that the centroid remains within the acceptable threshold
-#      (15km of Lavon).
-#   3. If your dashboard (qlog) shows an AUDIT ALERT or "OUT OF BOUNDS" error,
-#      run it manually to isolate which specific data points are causing the drift.
+# METRICS:
+# Drift Value	 Status	Meaning
+# 0.00 - 9.99 km GREEN	Optimal Center.
+#                       Your data cluster (Wylie, McKinney, Nevada) is
+#                       perfectly balanced around Lavon.
+# 10.0 - 15.0 km YELLOW	Skew Detected.
+#                       Your data is drifting (likely toward McKinney).
+#                       Audit your source BBOX.
+# > 15.0 km	     RED	Out of Bounds.
+#                       The centroid has left the primary North Texas corridor.
+#                       Data signals are unreliable.
 # ==============================================================================
 
 import json
@@ -50,7 +32,7 @@ HEALTH_FILE = os.path.join(PROJ_ROOT, "logs/qlog_system_health.json")
 GREEN='\033[0;32m'; RED='\033[0;31m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
 
 def render():
-    print(f"\n{BLUE}{BOLD}═══ QLOG QUANT-OPS DASHBOARD ═══{NC}")
+    print(f"\n{BLUE}{BOLD}═══ QLOG NASA/NOAA OBS DASHBOARD ═══{NC}")
     if not os.path.exists(HEALTH_FILE):
         print(f"{RED}❌ No health data. Run check_spatial_audit.sh{NC}"); return
 
