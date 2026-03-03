@@ -100,7 +100,7 @@ jobs:
           NEW_LINE="_Last Health Check: $TIMESTAMP UTC | Drift: $DRIFT km_"
 
           # Fix: Changed '/' to '|' in the sed command
-          sed -i "s|{{LAST_CHECK}}|$TIMESTAMP|g" README.md
+          sed -i "s|Last Health Check: [^|]*|Last Health Check: $TIMESTAMP |g" README.md
 
       - name: Commit and Push Changes
         run: |
