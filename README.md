@@ -85,20 +85,29 @@ This central watchdog script performs three critical checks every 6 hours:
 * **SMTP Access** (LAN-based credentials in `config.toml`)
 
 ### 🛠️ Quick Start
-```bash
+
 # 1. Setup Environment
+
+```bash
 git clone [https://github.com/BeUlta/satellite-suite.git](https://github.com/BeUlta/satellite-suite.git)
 cd satellite-suite
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+```
 
 # 2. Initialize Infrastructure (Example for SWPC)
+
+```bash
 mkdir -p logs data/{aurora/{north,south}/images,solar_304/images,lasco_c3/images}
+```
 
 # 3. Configure & Test
+
+```bash
 nano swpc/config.toml
 ./swpc/system_audit.sh
+```
 
 ---
 > 📢 Disclaimer
