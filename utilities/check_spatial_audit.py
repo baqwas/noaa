@@ -83,7 +83,10 @@ def render():
     # 5. Timestamp
     print(f"{BOLD}Last Audit :{NC}  {data.get('last_audit')}")
     print(f"{BLUE}════════════════════════════════{NC}\n")
+    # Machine-readable outputs for GitHub Actions
+    status_icon = "🟢" if float(drift) <= 15 else "🔴"
     print(f"DRIFT_VALUE:{drift}")
+    print(f"DRIFT_STATUS:{status_icon}")
 
 if __name__ == "__main__":
     render()

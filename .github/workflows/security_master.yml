@@ -52,8 +52,10 @@ jobs:
           OUTPUT=$(python utilities/check_spatial_audit.py)
           # We assume the python script prints 'DRIFT_VALUE: X.XXXX'
           DRIFT=$(echo "$OUTPUT" | grep "DRIFT_VALUE:" | cut -d':' -f2 | xargs)
+          STATUS=$(echo "$OUTPUT" | grep "DRIFT_STATUS:" | cut -d':' -f2 | xargs)
+
           echo "drift_val=$DRIFT" >> $GITHUB_OUTPUT
-          echo "Detected Drift: $DRIFT"
+          echo "status_icon=$STATUS" >> $GITHUB_OUTPUT # <--- ADD THIS
 
   # --- JOB 3: GENERATE REPORT ARTIFACT ---
   generate_report:
@@ -99,15 +101,14 @@ jobs:
         run: |
           TIMESTAMP=$(date +'%Y-%m-%d %H:%M')
           DRIFT="${{ needs.spatial_audit.outputs.drift }}"
+          ICON="${{ needs.spatial_audit.outputs.status_icon }}"
 
-          # Fix 1: Use pipe delimiter for sed to handle timestamp characters
-          # Fix 2: Explicitly target the health check and drift placeholders
+          # Update the Health Check line
           sed -i "s|Last Health Check: [^|]*|Last Health Check: $TIMESTAMP |g" README.md
-          sed -i "s|Drift: [^ ]*|Drift: $DRIFT|g" README.md
 
-          # Fix 3: Optional 'Last Success' badge update if placeholder exists
-          SUCCESS_TIME=$(date -u +"%Y-%m-%d %H:%M UTC")
-          sed -i "s|{{LAST_SUCCESS}}|$SUCCESS_TIME|g" README.md
+          # Update the Drift line with the Status Icon
+          # Target: Drift: [ANYTHING] km_
+          sed -i "s|Drift: .*|Drift: $ICON $DRIFT km_|g" README.md
 
       - name: Commit and Push Changes
         run: |
