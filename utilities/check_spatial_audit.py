@@ -83,6 +83,7 @@ def render():
     # 5. Timestamp
     print(f"{BOLD}Last Audit :{NC}  {data.get('last_audit')}")
     print(f"{BLUE}════════════════════════════════{NC}\n")
+    print(f"DRIFT_VALUE:{drift}")
 
 if __name__ == "__main__":
     render()
