@@ -89,6 +89,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+            token: ${{ secrets.GH_PAT }} # Use the Personal Access Token here
 
       - name: Inject Stats into README
         run: |
@@ -107,7 +109,9 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add README.md
-          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: auto-update health stats [skip ci]" && git push)
+          # The [skip ci] is crucial to avoid loops
+          git commit -m "chore: auto-update health stats [skip ci]" || exit 0
+          git push origin master
 
   # --- JOB 5: WORKSPACE CLEANUP ---
   cleanup_workspace:
