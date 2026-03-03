@@ -1,3 +1,6 @@
+# ==========================================
+# 🛡️ SECURITY & INTEGRITY MASTER WORKFLOW
+# ==========================================
 name: 🛡️ Security & Integrity Master
 
 on:
@@ -94,22 +97,24 @@ jobs:
 
       - name: Inject Stats into README
         run: |
-          # Use a simple format to avoid special character conflicts
           TIMESTAMP=$(date +'%Y-%m-%d %H:%M')
           DRIFT="${{ needs.spatial_audit.outputs.drift }}"
 
-          # We use '|' as the delimiter instead of '/'
-          NEW_LINE="_Last Health Check: $TIMESTAMP UTC | Drift: $DRIFT km_"
-
-          # Fix: Changed '/' to '|' in the sed command
+          # Fix 1: Use pipe delimiter for sed to handle timestamp characters
+          # Fix 2: Explicitly target the health check and drift placeholders
           sed -i "s|Last Health Check: [^|]*|Last Health Check: $TIMESTAMP |g" README.md
+          sed -i "s|Drift: [^ ]*|Drift: $DRIFT|g" README.md
+
+          # Fix 3: Optional 'Last Success' badge update if placeholder exists
+          SUCCESS_TIME=$(date -u +"%Y-%m-%d %H:%M UTC")
+          sed -i "s|{{LAST_SUCCESS}}|$SUCCESS_TIME|g" README.md
 
       - name: Commit and Push Changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add README.md
-          # The [skip ci] is crucial to avoid loops
+          # The [skip ci] is crucial to avoid recursive workflow loops
           git commit -m "chore: auto-update health stats [skip ci]" || exit 0
           git push origin master
 

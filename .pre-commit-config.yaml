@@ -11,7 +11,7 @@ repos:
     rev: v1.23.0
     hooks:
       - id: ggshield                # Local GitGuardian secret scan
-        stages: [commit]
+        stages: [pre-commit]
 
   - repo: local
     hooks:
