@@ -1,0 +1,59 @@
+# ===============================================================================
+# 🌌 BeUlta Satellite Suite: Master Schedule (v2.4.1)
+# ===============================================================================
+# Global Variable Definitions for Cron Environment
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+# Replace these variables as appropriate
+PROJ=/home/<user>/PycharmProjects/noaa
+VIDEO_ROOT=/home/<user>/Videos/satellite
+VENV_PY=/home/<user>/PycharmProjects/noaa/.venv/bin/python3
+
+# --- 📥 REAL-TIME INGEST (High-Frequency Staggering) ---
+# Alerts and GOES imagery. Internal logic now redirects to $VIDEO_ROOT/weather/logs/
+*/5 * * * * /bin/bash $PROJ/weather/alerts_texas.sh >> $VIDEO_ROOT/weather/logs/cron_alerts.log 2>&1
+2,12,22,32,42,52 * * * * /bin/bash $PROJ/swpc/space_fetcher.sh >> $VIDEO_ROOT/swpc/logs/space_fetcher.log 2>&1
+4,14,24,34,44,54 * * * * /bin/bash $PROJ/goes/retrieve_goes.sh >> $VIDEO_ROOT/goes/logs/goes_fetch.log 2>&1
+
+# --- 🛰️ THE MIDNIGHT INGEST STACK ---
+# 00:15 - Terran Land Monitoring
+15 00 * * * /bin/bash $PROJ/terran/terran_watch.sh >> $VIDEO_ROOT/terran/logs/cron_watch.log 2>&1
+
+# 00:30 - Master Render Engine (SWPC, GOES, and Terran)
+30 00 * * * /bin/bash $PROJ/swpc/compile_all_daily.sh >> $VIDEO_ROOT/logs/daily_render.log 2>&1
+
+# --- 🛡️ THE AUDIT & WATCHDOG STACK ---
+# 01:30 - Universal Storage Watchdog
+30 01 * * * $VENV_PY $PROJ/utilities/system_audit.py >> $VIDEO_ROOT/logs/system_audit.log 2>&1
+
+# 02:00 - Shell Wrapper Audit
+00 02 * * * /bin/bash $PROJ/swpc/system_audit.sh >> $VIDEO_ROOT/logs/system_audit.log 2>&1
+
+# 04:00 - System Maintenance (Daily repair)
+00 04 * * * /bin/bash $PROJ/swpc/system_audit.sh --repair >> $VIDEO_ROOT/logs/system_audit.log 2>&1
+
+# --- 📊 MORNING INVENTORY & NASA EPIC ---
+05 05 * * * /bin/bash $PROJ/swpc/space_status.sh >> $VIDEO_ROOT/swpc/logs/inventory.log 2>&1
+10 10 * * * /bin/bash $PROJ/epic/epic_fetcher.sh >> $VIDEO_ROOT/epic/logs/cron_fetch.log 2>&1
+45 10 * * * /bin/bash $PROJ/epic/epic_dashboard.sh >> $VIDEO_ROOT/epic/logs/dashboard.log 2>&1
+
+# --- 📈 RAINFALL & TRENDS (Weekly/Daily/Monthly) ---
+# Sunday Weekly Trend Analysis
+4 4 * * 0   /bin/bash $PROJ/weather/rainfall_trend.sh >> $VIDEO_ROOT/weather/logs/rainfall_trend.log 2>&1
+
+# Daily Regional Bulk Sync
+5 5 * * * /bin/bash $PROJ/weather/rainfall_bulk.sh >> $VIDEO_ROOT/weather/logs/cron_bulk.log 2>&1
+
+# Monthly 10-Year Historical Review
+0 3 1 * * /bin/bash $PROJ/weather/rainfall_review.sh >> $VIDEO_ROOT/weather/logs/rainfall_review.log 2>&1
+
+# --- 📉 MONTHLY TRENDS (1st of Month) ---
+30 8 1 * * /bin/bash $PROJ/terran/terran_trends.sh >> $VIDEO_ROOT/terran/logs/cron_trends.log 2>&1
+45 8 1 * * /bin/bash $PROJ/terran/terran_report.sh >> $VIDEO_ROOT/terran/logs/report_output.log 2>&1
+
+# --- ♻️ HEALTH & LOG ROTATION ---
+# 03:00 Sunday - Log Rotation & 7-Day Image Purge
+00 03 * * 0 /bin/bash $PROJ/utilities/log_manager.sh >> $VIDEO_ROOT/logs/maintenance.log 2>&1
+
+# Daily Hardening Audit
+58 0 * * * /bin/bash $PROJ/utilities/check_spatial_audit.sh >> $VIDEO_ROOT/logs/audit_history.log 2>&1
