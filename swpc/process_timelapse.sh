@@ -2,10 +2,10 @@
 # -----------------------------------------------------------------------------
 # 🌌 NAME          : process_timelapse.sh
 # 👤 AUTHOR        : Matha Goram / BeUlta Suite
-# 🔖 VERSION       : 1.2.3 (Final Hardened Version)
-# 📅 UPDATED       : 2026-03-01
+# 🔖 VERSION       : 1.2.4 (Enhanced for Consolidated Workflow)
+# 📅 UPDATED       : 2026-03-07
 # 📝 DESCRIPTION   : Converts raw satellite imagery into MP4 videos.
-#                    Uses direct shell expansion for maximum FFmpeg compatibility.
+#                    Now includes image archival to prevent directory bloat.
 # ⚖️ LICENSE       : MIT License (c) 2026 ParkCircus Productions
 # -----------------------------------------------------------------------------
 
@@ -17,6 +17,7 @@ BLUE='\033[0;34m'; NC='\033[0m'; BOLD='\033[1m';
 IMG_DIR="$1"
 VID_DIR="$2"
 LABEL="$3"
+# Use yesterday's date for the filename as we compile at 00:30
 DATE=$(date -d "yesterday" +%Y-%m-%d)
 
 # --- 🛡️ Validation Gate ---
@@ -27,16 +28,16 @@ fi
 
 TARGET_ROOT=$(dirname "$IMG_DIR")
 LOG="${TARGET_ROOT}/processing.log"
+ARCHIVE_DIR="${TARGET_ROOT}/archive/${DATE}"
 mkdir -p "$VID_DIR"
 
 # --- 🔍 Image Discovery ---
-# We use an array to capture files. This works regardless of FFmpeg version.
 shopt -s nullglob
 FILES=("$IMG_DIR"/*.[jJ][pP][gG] "$IMG_DIR"/*.[pP][nN][gG])
 TOTAL_FRAMES=${#FILES[@]}
 
 if [ "$TOTAL_FRAMES" -lt 24 ]; then
-    echo -e "${YELLOW}⚠️  [SKIP]${NC} Only ${TOTAL_FRAMES} images found for $LABEL."
+    echo -e "${YELLOW}⚠️  [SKIP]${NC} Only ${TOTAL_FRAMES} images found for $LABEL. Minimum 24 required."
     exit 0
 fi
 
@@ -44,12 +45,11 @@ OUT_FILE="${VID_DIR}/${LABEL}_${DATE}.mp4"
 echo -e "${BLUE}🚀 [START]${NC} Rendering ${BOLD}${LABEL}${NC} (${TOTAL_FRAMES} frames)..."
 
 # --- 🎞️ FFmpeg Execution ---
-# We use a temporary file list (concat demuxer style) or direct pipe.
-# Direct pipe is most compatible across Ubuntu/Debian versions.
+# Generate temp file list for the concat demuxer
 printf "file '%s'\n" "${FILES[@]}" > "${TARGET_ROOT}/files.txt"
 
 ffmpeg -nostdin -y -r 24 -f concat -safe 0 -i "${TARGET_ROOT}/files.txt" \
-       -c:v libx264 -pix_fmt yuv420p \
+       -c:v libx264 -pix_fmt yuv420p -profile:v high -level 4.2 \
        -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2,setsar=1" \
        -preset medium -crf 23 \
        "$OUT_FILE" >> "$LOG" 2>&1
@@ -59,10 +59,16 @@ RENDER_STATUS=$?
 # Cleanup temp file
 rm -f "${TARGET_ROOT}/files.txt"
 
-# --- 🏁 Exit Logic ---
+# --- 🏁 Exit Logic & Housekeeping ---
 if [ $RENDER_STATUS -eq 0 ]; then
     echo "[$(date)] ✅ SUCCESS: $OUT_FILE" >> "$LOG"
     echo -e "${GREEN}✅ [SUCCESS]${NC} Video archived: ${BOLD}$(basename "$OUT_FILE")${NC}"
+
+    # --- 🧹 Housekeeping: Move processed images to archive ---
+    mkdir -p "$ARCHIVE_DIR"
+    mv "$IMG_DIR"/* "$ARCHIVE_DIR/"
+    echo "[$(date)] 🧹 Cleanup: Images moved to $ARCHIVE_DIR" >> "$LOG"
+
     exit 0
 else
     echo "[$(date)] ❌ FAILED: Render error for $LABEL" >> "$LOG"
