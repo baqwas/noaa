@@ -1,91 +1,126 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # -----------------------------------------------------------------------------
-# 🎞️ NAME          : compile_all_daily.sh
-# 🚀 DESCRIPTION   : Standardized Parallel Render Engine for Satellite Imagery.
-#                   Ensures output aligns with System Audit nomenclature.
-#                   Consolidated: Handles Aurora, GOES, and Terran Land-Use.
-#                   Includes email alerts and persistent failure logging.
-# 👤 AUTHOR        : Matha Goram
+# 📅 NAME          : compile_all_daily.sh
+# 🚀 DESCRIPTION   : Master Rendering Engine for the BeUlta Satellite Suite.
+#                   Orchestrates the conversion of daily image sequences into
+#                   timelapse videos for GOES, SWPC, and NASA GIBS targets.
+#                   Includes an automated SMTP audit via Postfix relay.
+#                   Now supports conditional "HAZY DAY" overlays via
+#                   visibility_audit.py integration.
+# 👤 AUTHOR        : Matha Goram / BeUlta Suite
 # 📅 UPDATED       : 2026-03-07
 # ⚖️ LICENSE       : MIT License (c) 2026 ParkCircus Productions
 # -----------------------------------------------------------------------------
 
-# --- ⚙️ Configuration ---
-BLUE='\033[0;34m'; GREEN='\033[0;32m'; RED='\033[0;31m'; NC='\033[0m'
-
-PROJ_DIR="/home/reza/PycharmProjects/noaa"
-PROC_SCRIPT="${PROJ_DIR}/swpc/process_timelapse.sh"
+# --- ⚙️ Global Paths & Environment ---
+PROJ_ROOT="/home/reza/PycharmProjects/noaa"
 SATELLITE_ROOT="/home/reza/Videos/satellite"
-SYSTEM_AUDIT_LOG="${SATELLITE_ROOT}/logs/system_audit.log"
-EMAIL_RECIPIENT="reza@parkcircus.org"
+LOG_DIR="${SATELLITE_ROOT}/logs"
+PROC_SCRIPT="${PROJ_ROOT}/swpc/process_timelapse.sh"
+VIS_FLAG="${LOG_DIR}/visibility_flag.txt"
+SYSTEM_LOG="${LOG_DIR}/daily_render.log"
+
+# --- 📧 Notification Settings ---
+ADMIN_EMAIL="reza@parkcircus.org"
+HOSTNAME=$(hostname)
+
+# --- 🎨 UI Styling ---
+BLUE='\033[0;34m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
 
 # --- 🛰️ Standardized Target Registry ---
-# Format: "Relative_Path_to_Instrument|Target_Name"
-# Logic: Audit expects videos in $SATELLITE_ROOT/$Relative_Path/$Target_Name/videos/
+# Format: "Instrument_Subdir|Target_Name"
 TARGETS=(
     "swpc|aurora_north"
     "swpc|aurora_south"
-    "swpc|solar_suvi_304"
-    "swpc|cme_lasco_c3"
     "goes|goes_east"
     "goes|goes_west"
     "terran|land_use"
+    "noaa/viirs|true_color"
+    "noaa/viirs|night_lights"
+    "noaa/viirs|surface_reflectance"
+    "noaa/viirs|aerosols"
+    "noaa/viirs|carbon_monoxide"
+    "noaa/viirs|sea_surface_temp"
+    "noaa/viirs|precipitable_water"
 )
 
-echo -e "${BLUE}>>> 🚀 Launching Standardized Render Engine <<<${NC}"
+# --- 🛡️ Critical Audit List ---
+# These targets MUST succeed. Failure triggers an alert via Postfix/Bezaman relay.
+CRITICAL_CHECKS=(
+    "goes|goes_east"
+    "noaa/viirs|true_color"
+    "noaa/viirs|aerosols"
+    "noaa/viirs|sea_surface_temp"
+)
 
-# Ensure log directory exists for the failure summary
-mkdir -p "$(dirname "$SYSTEM_AUDIT_LOG")"
+echo -e "${BLUE}>>> 🎬 Starting BeUlta Master Render Sequence [$(date)] <<<${NC}" | tee -a "$SYSTEM_LOG"
 
-if [[ ! -f "$PROC_SCRIPT" ]]; then
-    echo -e "${RED}❌ [FATAL] Processor script missing: $PROC_SCRIPT${NC}"
-    exit 1
-fi
+# --- 🚀 Processing Loop ---
+FAILED_TARGETS=()
 
-# --- 🎥 Processing Loop ---
 for entry in "${TARGETS[@]}"; do
-    IFS="|" read -r REL_PATH TARGET_NAME <<< "$entry"
+    IFS="|" read -r INST NAME <<< "$entry"
 
-    IMG_DIR="${SATELLITE_ROOT}/${REL_PATH}/${TARGET_NAME}/images"
-    VID_DIR="${SATELLITE_ROOT}/${REL_PATH}/${TARGET_NAME}/videos"
+    IMG_DIR="${SATELLITE_ROOT}/${INST}/${NAME}/images"
+    VID_DIR="${SATELLITE_ROOT}/${INST}/${NAME}/videos"
 
-    # Ensure the auditor's expected directory exists
-    mkdir -p "$VID_DIR"
+    echo -e "${BLUE}🔍 Auditing Target: ${NC}${NAME} (${INST})"
 
-    if [ -d "$IMG_DIR" ] && [ "$(ls -A "$IMG_DIR")" ]; then
-        echo -e "${GREEN}🎥 Processing: ${TARGET_NAME}${NC}"
-        # Execute processor (process_timelapse.sh handles individual frames and archival)
-        bash "$PROC_SCRIPT" "$IMG_DIR" "$VID_DIR" "$TARGET_NAME"
+    # 1. Check for Visibility Flags (Atmospheric Interference Audit)
+    # If the Python audit detected high AOD, we set the overlay for the render engine.
+    OVERLAY_TEXT=""
+    if [[ "$INST" == "noaa/viirs" && -f "$VIS_FLAG" ]]; then
+        echo -e "${YELLOW}☁️  Low Visibility Detected: Queuing 'HAZY DAY' overlay.${NC}"
+        OVERLAY_TEXT="HAZY DAY"
+    fi
+
+    # 2. Verify Image Availability
+    if [[ -d "$IMG_DIR" && "$(ls -A "$IMG_DIR" 2>/dev/null)" ]]; then
+        echo -e "${GREEN}✅ Images found. Initiating render...${NC}"
+
+        # Execute the processing engine
+        # Arguments: 1:Source, 2:Destination, 3:Target_Name, 4:Overlay_Text
+        if bash "$PROC_SCRIPT" "$IMG_DIR" "$VID_DIR" "$NAME" "$OVERLAY_TEXT" >> "$SYSTEM_LOG" 2>&1; then
+            echo -e "${GREEN}✨ Render Complete: ${NAME}${NC}"
+        else
+            echo -e "${RED}❌ Render Failed: ${NAME}${NC}"
+            FAILED_TARGETS+=("$entry")
+        fi
     else
-        echo -e "${RED}⚠️  Skipping ${TARGET_NAME}: No source images in $IMG_DIR${NC}"
+        echo -e "${YELLOW}⚠️  No frames found for ${NAME}. Skipping.${NC}"
+        # If it was a critical target, log it as a failure
+        for crit in "${CRITICAL_CHECKS[@]}"; do
+            if [[ "$crit" == "$entry" ]]; then
+                FAILED_TARGETS+=("$entry")
+            fi
+        done
     fi
 done
 
-# --- 📧 Post-Render Audit & Persistent Failure Logging ---
-# Validates production of critical imagery videos
-MISSING_TARGETS=""
-CRITICAL_CHECKS=("goes|goes_east" "goes|goes_west" "terran|land_use")
-TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
+# --- 📧 Post-Processing Audit & Alerts ---
+if [ ${#FAILED_TARGETS[@]} -ne 0 ]; then
+    # Filter only critical failures for email notification
+    CRIT_FAILURES=()
+    for fail in "${FAILED_TARGETS[@]}"; do
+        for crit in "${CRITICAL_CHECKS[@]}"; do
+            if [[ "$fail" == "$crit" ]]; then
+                CRIT_FAILURES+=("$fail")
+            fi
+        done
+    done
 
-for item in "${CRITICAL_CHECKS[@]}"; do
-    IFS="|" read -r INST NAME <<< "$item"
-    VID_PATH="${SATELLITE_ROOT}/${INST}/${NAME}/videos"
+    if [ ${#CRIT_FAILURES[@]} -ne 0 ]; then
+        echo -e "${RED}🚨 CRITICAL FAILURE: Dispatching alert to ${ADMIN_EMAIL}${NC}"
 
-    # Check if an mp4 was created/modified in the last 90 minutes
-    if ! find "$VID_PATH" -name "*.mp4" -mmin -90 | grep -q "."; then
-        MISSING_TARGETS="${MISSING_TARGETS}\n- ${NAME}"
-        # Log to the persistent system_audit.log for historical tracking
-        echo "[${TIMESTAMP}] [RENDER_FAILURE] Target: ${NAME} | Path: ${INST}/${NAME}" >> "$SYSTEM_AUDIT_LOG"
+        MSG_BODY="BeUlta Satellite Suite: Critical Render Failure\n\n"
+        MSG_BODY+="Timestamp: $(date)\n"
+        MSG_BODY+="Host: $HOSTNAME\n\n"
+        MSG_BODY+="The following critical targets failed to render or had missing data:\n"
+        for f in "${CRIT_FAILURES[@]}"; do MSG_BODY+="- $f\n"; done
+        MSG_BODY+="\nPlease check the logs at: $SYSTEM_LOG"
+
+        echo -e "$MSG_BODY" | mail -s "❌ BeUlta Render Alert: Critical Failure on $HOSTNAME" "$ADMIN_EMAIL"
     fi
-done
-
-# Send email alert if any critical renders failed
-if [[ -n "$MISSING_TARGETS" ]]; then
-    echo -e "Alert: Satellite Render Failure\n\nThe following critical videos were not generated today:${MISSING_TARGETS}\n\nThis event has been logged to system_audit.log." | \
-    mail -s "⚠️ SATELLITE ALERT: Missing Daily Renders" "$EMAIL_RECIPIENT"
-else
-    # Log a successful health check to the audit log
-    echo "[${TIMESTAMP}] [RENDER_HEALTH] All critical targets compiled successfully." >> "$SYSTEM_AUDIT_LOG"
 fi
 
-echo -e "${BLUE}>>> 🏁 Daily Compilation Cycle Complete <<<${NC}"
+echo -e "${BLUE}>>> ✅ Master Render Sequence Finished [$(date)] <<<${NC}\n" | tee -a "$SYSTEM_LOG"

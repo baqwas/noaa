@@ -27,3 +27,5 @@ mariadb
 sqlalchemy
 python-dotenv
 numpy
+
+tomli

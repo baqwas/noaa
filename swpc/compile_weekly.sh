@@ -3,8 +3,9 @@
 # 📅 NAME          : compile_weekly.sh
 # 🚀 DESCRIPTION   : Recursive Weekly Video Archive Engine.
 #                   Consolidates daily MP4s into weekly summaries.
+#                   v1.1: Added file-size validation to skip "ghost" videos.
 # 👤 AUTHOR        : Matha Goram
-# 📅 UPDATED       : 2026-03-01
+# 📅 UPDATED       : 2026-03-07
 # ⚖️ LICENSE       : MIT License (c) 2026 ParkCircus Productions
 # -----------------------------------------------------------------------------
 
@@ -20,11 +21,9 @@ echo -e "${BLUE}>>> 🗓️  Starting Weekly Archive Compilation ($WEEK_LABEL) <
 # 1. Find every 'videos' directory in the satellite archive
 find "$BASE_ROOT" -type d -name "videos" | while read -r VID_DIR; do
 
-    # Identify the parent target name (e.g., goes_east)
     TARGET_DIR=$(dirname "$VID_DIR")
     TARGET_NAME=$(basename "$TARGET_DIR")
 
-    # Check for daily MP4s
     shopt -s nullglob
     DAILY_VIDS=("$VID_DIR"/*.mp4)
     shopt -u nullglob
@@ -33,26 +32,33 @@ find "$BASE_ROOT" -type d -name "videos" | while read -r VID_DIR; do
         continue
     fi
 
-    echo -e "📦 Archiving Weekly: ${GREEN}$TARGET_NAME${NC}"
-
     JOIN_FILE="${VID_DIR}/join_list.txt"
     OUTPUT_FILE="${VID_DIR}/WEEKLY_${TARGET_NAME}_${WEEK_LABEL}.mp4"
 
     # Create FFMPEG concat list
     > "$JOIN_FILE"
+    VALID_COUNT=0
+
     for vid in "${DAILY_VIDS[@]}"; do
-        # Do not include existing weekly files in the new weekly file
+        # Logic: Skip weekly files, and ensure the video is > 100KB
+        # (Anything smaller is likely a failed render from missing GIBS data)
         if [[ $(basename "$vid") != WEEKLY_* ]]; then
-            echo "file '$(basename "$vid")'" >> "$JOIN_FILE"
+            FILESIZE=$(stat -c%s "$vid")
+            if [ "$FILESIZE" -gt 102400 ]; then
+                echo "file '$(basename "$vid")'" >> "$JOIN_FILE"
+                ((VALID_COUNT++))
+            fi
         fi
     done
 
-    # 2. Compile using Concat Demuxer (Fast, no re-encoding)
-    if [ -s "$JOIN_FILE" ]; then
+    # 2. Compile using Concat Demuxer
+    if [ "$VALID_COUNT" -gt 0 ]; then
+        echo -e "📦 Archiving Weekly: ${GREEN}$TARGET_NAME${NC} ($VALID_COUNT days)"
         ffmpeg -y -f concat -safe 0 -i "$JOIN_FILE" -c copy "$OUTPUT_FILE" > /dev/null 2>&1
         echo -e "✅ Created: $OUTPUT_FILE"
-        rm "$JOIN_FILE"
     fi
+
+    [ -f "$JOIN_FILE" ] && rm "$JOIN_FILE"
 done
 
 echo -e "${BLUE}>>> 🏁 Weekly Archive Cycle Complete <<<${NC}"
