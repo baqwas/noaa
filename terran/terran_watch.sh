@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------------------------
 # 🌱 NAME          : terran_watch.sh
-# 📝 DESCRIPTION   : Unified wrapper for Land Use monitoring.
-# 🔖 VERSION       : 1.2.5
-# 📅 UPDATED       : 2026-03-09
+# 📝 DESCRIPTION   : Unified wrapper for Land Use monitoring with lookback support.
+# 🔖 VERSION       : 1.3.0
+# 📅 UPDATED       : 2026-03-10
 # 👤 AUTHOR        : Matha Goram
 # -------------------------------------------------------------------------------
 
 # --- 🎨 Configuration ---
 PROJ_ROOT="/home/reza/PycharmProjects/noaa"
 PYTHON_BIN="${PROJ_ROOT}/.venv/bin/python3"
+# Note: Ensure this path matches your local structure (terran/ or vlm_audit/ etc)
 SCRIPT="${PROJ_ROOT}/terran/terran_watch.py"
 CONFIG="${PROJ_ROOT}/config.toml"
 
@@ -17,25 +18,32 @@ CONFIG="${PROJ_ROOT}/config.toml"
 ACTUAL_LOG="/home/reza/Videos/satellite/terran/logs/terran_watch.log"
 LOCKFILE="/tmp/terran_watch.lock"
 
+# --- 🎨 Terminal Aesthetics ---
 BLUE='\033[0;34m'; GREEN='\033[0;32m'; RED='\033[0;31m'; NC='\033[0m'
 
-echo -e "${BLUE}🚀 [$(date +'%Y-%m-%d %H:%M:%S')] Starting Terran Ingest...${NC}"
+# --- 🛰️ Argument Handling ---
+# If a number is passed (e.g., ./terran_watch.sh 2), use it. Default to 0.
+LOOKBACK_VAL=${1:-0}
+
+echo -e "${BLUE}🚀 [$(date +'%Y-%m-%d %H:%M:%S')] Starting Terran Ingest Cycle...${NC}"
+echo -e "${BLUE}📅 Temporal Offset: ${LOOKBACK_VAL} days lookback.${NC}"
 
 # --- 🛡️ Guard ---
 if [ -e "$LOCKFILE" ]; then
-    echo -e "${RED}⚠️  Lockfile detected. Exiting overlapping run.${NC}"; exit 1
+    echo -e "${RED}⚠️  Lockfile detected. Exiting overlapping run.${NC}"
+    exit 1
 fi
-touch "$LOCKFILE"; trap 'rm -f "$LOCKFILE"' EXIT
+touch "$LOCKFILE"
+trap 'rm -f "$LOCKFILE"' EXIT
 
 # --- ⚙️ Execution ---
-"$PYTHON_BIN" "$SCRIPT" --config "$CONFIG"
+# Passing both the config path and the lookback value to the Python engine
+"$PYTHON_BIN" "$SCRIPT" --config "$CONFIG" --lookback "$LOOKBACK_VAL"
 
 # --- 🏁 Reporting ---
 if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✅ [SUCCESS] Terran update completed.${NC}"
+    echo -e "${GREEN}🟢 Terran Ingest completed successfully.${NC}"
 else
-    # Improved log capture for Collin County alerts
-    LOG_TAIL=$(tail -n 20 "$ACTUAL_LOG" 2>/dev/null || echo "Log missing at $ACTUAL_LOG")
-    echo -e "Subject: ❌ Terran Failure\n\nAlert: Collin County monitor failed.\n\n$LOG_TAIL" | msmtp reza@parkcircus.org
+    echo -e "${RED}🔴 Terran Ingest failed. Check SMTP alerts or logs.${NC}"
     exit 1
 fi

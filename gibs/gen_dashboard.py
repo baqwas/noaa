@@ -3,96 +3,108 @@
 ===============================================================================
 🚀 PROJECT      : BeUlta Satellite Suite
 📦 MODULE       : gen_dashboard.py
-👤 AUTHOR       : Matha Goram
-🔖 VERSION      : 1.1.0
-📅 LAST UPDATE  : 2026-03-07
-⚖️ COPYRIGHT    : (c) 2026 ParkCircus Productions
-📜 LICENSE      : MIT License
+👤 AUTHOR        : Reza / BeUlta Suite
+🔖 VERSION       : 1.1.1
+📅 LAST UPDATE  : 2026-03-10
+⚖️ COPYRIGHT     : (c) 2026 ParkCircus Productions
+📜 LICENSE       : MIT License
 ===============================================================================
 
 📑 VERSION HISTORY:
     - 1.0.0: Initial Montage Script (Basic ImageMagick wrapper).
-    - 1.1.0: Refactored to inherit CoreService; integrated central logging
-             and dynamic path resolution from config.toml.
+    - 1.1.0: Refactored to inherit CoreService class (Deprecated).
+    - 1.1.1: Handshake 2.4.0 Migration. Switched to functional initialization
+             and standardized PycharmProjects path resolution.
 
 📝 DESCRIPTION:
     Generates a 2x2 multi-spectral composite dashboard using ImageMagick.
-    Aggregates the most recent captures from the instrument_root.
+    Aggregates the most recent captures from the instrument_root defined
+    in the global configuration.
 
 🛠️ PREREQUISITES:
-    - core_service.py in ~/noaa/utilities
+    - core_service.py v2.4.0 in ~/PycharmProjects/noaa/utilities
     - ImageMagick installed (`sudo apt install imagemagick`)
+
+[Workflow Pipeline Description]
+1. Path Injection: Forces local utilities path to the front of sys.path.
+2. Configuration: Hydrates settings via core_service.get_config().
+3. Tile Discovery: Scans instrument subdirectories for the latest T-1 JPEGs.
+4. Composition: Executes 'montage' to create a labeled 2048x2048 grid.
+5. Telemetry: Updates MQTT topic 'beulta/dashboard/status'.
+
+[Error Messages Summary]
+- "ERR_PATH_001": Critical failure locating the utilities directory.
+- "ERR_IMG_002" : ImageMagick 'montage' execution failure.
 ===============================================================================
 """
 
 import os
 import sys
 import subprocess
+import logging
 import datetime
 from pathlib import Path
 
 # --- 🛠️ PRIORITY PATH INJECTION ---
-util_path = os.path.expanduser("~/noaa/utilities")
+project_root = "/home/reza/PycharmProjects/noaa"
+util_path = os.path.join(project_root, "utilities")
+
 if util_path not in sys.path:
     sys.path.insert(0, util_path)
 
 try:
-    from core_service import CoreService, TerminalColor
+    from core_service import get_config, init_mqtt, TerminalColor
 except ImportError:
-    print(f"❌ [CRITICAL] Could not find core_service.py in: {util_path}")
+    print(f"❌ [CRITICAL] ERR_PATH_001: Could not find core_service.py in: {util_path}")
     sys.exit(1)
 
+# --- ⚙️ INITIALIZATION ---
+TC = TerminalColor()
+config = get_config()
 
-class DashboardGenerator(CoreService):
-    """
-    Service class for generating daily 2x2 satellite composites.
-    """
 
+class DashboardGenerator:
     def __init__(self):
-        super().__init__("DASHBOARD_GEN")
-        gibs_cfg = self.config.get("gibs", {})
-        self.instr_root = Path(gibs_cfg.get("instrument_root", "/tmp"))
-        # Dashboard output goes to the root of the instrument folder
+        self.gibs_cfg = config.get('gibs', {})
+        self.instr_root = Path(self.gibs_cfg.get('images_dir', '/home/reza/Videos/satellite/gibs'))
         self.output_dir = self.instr_root / "dashboards"
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    def generate_daily_composite(self, target_date: str = None):
-        """
-        Creates a 2x2 montage of the specified date's imagery.
-        """
-        if not target_date:
-            target_date = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+        self.mqtt_client = init_mqtt()
+        self.clr = TerminalColor()
 
-        self.logger.info(f"{self.clr.BOLD}🖥️  Generating BeUlta Dashboard for: {target_date}{self.clr.ENDC}")
+        logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+        self.logger = logging.getLogger("BeUlta.Dashboard")
 
-        # Define the 4 quadrants for the 2x2 layout
-        # (Using the standardized subdirs from config.toml)
-        tiles = [
-            self.instr_root / "true_color" / f"viirs_true_color_{target_date}.jpg",
-            self.instr_root / "night_lights" / f"conus_night_lights_{target_date}.jpg",
-            self.instr_root / "precipitation" / f"texas_precipitation_{target_date}.jpg",
-            self.instr_root / "aerosols" / f"texas_aerosols_{target_date}.jpg"
-        ]
+    def mqtt_publish(self, topic, payload):
+        if self.mqtt_client:
+            self.mqtt_client.publish(topic, payload, retain=True)
 
-        # Filter for existing files only
-        valid_tiles = [str(t) for t in tiles if t.exists()]
+    def generate_composite(self):
+        """Finds latest tiles and stitches them into a 2x2 grid."""
+        target_date = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+        valid_tiles = []
 
-        if len(valid_tiles) < 4:
-            self.logger.warning(f"⚠️  Incomplete tile set ({len(valid_tiles)}/4). Creating partial dashboard.")
+        # Subdirectories to pull from for the 2x2 grid
+        subdirs = ["viirs_true_color", "night_lights", "aerosol_optical_depth", "precipitable_water"]
+
+        for sd in subdirs:
+            img_path = self.instr_root / sd / "images"
+            # Search for the specific T-1 file
+            matches = list(img_path.glob(f"*{target_date}.jpg"))
+            if matches:
+                valid_tiles.append(str(matches[0]))
 
         if not valid_tiles:
-            self.logger.error("❌ No valid images found for dashboard. Aborting.")
+            self.logger.error("❌ ERR_IMG_001: No valid images found for T-1 dashboard.")
             return
 
         output_file = self.output_dir / f"BeUlta_Dashboard_{target_date}.jpg"
 
-        # ImageMagick Montage Command
         cmd = [
             "montage",
             "-background", "#1a1a1a",
             "-fill", "white",
-            "-font", "Liberation-Sans",
-            "-pointsize", "40",
             "-geometry", "1024x1024+5+5",
             "-tile", "2x2",
             "-title", f"BeUlta Satellite Suite | {target_date}"
@@ -104,15 +116,13 @@ class DashboardGenerator(CoreService):
             result = subprocess.run(cmd, capture_output=True, text=True)
             if result.returncode == 0:
                 self.logger.info(f"{self.clr.OKGREEN}✅ Dashboard Created: {output_file.name}{self.clr.ENDC}")
-                self.mqtt_publish(f"beulta/dashboard/status", "UPDATED")
+                self.mqtt_publish("beulta/dashboard/status", "UPDATED")
             else:
-                self.logger.error(f"ImageMagick Error: {result.stderr}")
+                self.logger.error(f"🚨 ERR_IMG_002: ImageMagick Error: {result.stderr}")
         except Exception as e:
             self.logger.error(f"Execution Error: {e}")
 
 
 if __name__ == "__main__":
     gen = DashboardGenerator()
-    # If no argument is passed, it defaults to yesterday (T-1)
-    date_arg = sys.argv[1] if len(sys.argv) > 1 else None
-    gen.generate_daily_composite(date_arg)
+    gen.generate_composite()

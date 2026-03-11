@@ -1,139 +1,135 @@
 #!/usr/bin/env python3
 """
 ===============================================================================
-🚀 NAME          : gibs_fetcher.py
-👤 AUTHOR        : Matha Goram
-🔖 VERSION       : 1.3.0
-📅 LAST UPDATE  : 2026-03-07
+🚀 PROJECT      : BeUlta Satellite Suite
+📦 MODULE       : gibs_fetcher.py
+👤 AUTHOR        : Reza / BeUlta Suite
+🔖 VERSION       : 2.4.2
+📅 LAST UPDATE  : 2026-03-10
+⚖️ COPYRIGHT     : (c) 2026 ParkCircus Productions
+📜 LICENSE       : MIT License
 ===============================================================================
 
 📑 VERSION HISTORY:
-    - 1.0.0: Initial NASA GIBS Fetcher (Basic requests implementation).
-    - 1.1.0: Path Logic Unification (instrument_root + subdir resolution).
-    - 1.2.0: Atomic Ingest Integration (stream_binary_resource & .tmp swap).
-    - 1.3.0: Smart Retry Logic (T-2 fallback & XML Service Exception detection).
+    - 2.4.0: Migrated to WMS protocol to bypass tile-mapping complexities.
+    - 2.4.1: Added centralized BBOX injection and corrected error logging.
+    - 2.4.2: Parameterized lookback_days via config.toml (Variable Search Depth).
 
 📝 DESCRIPTION:
-    Iterative NASA GIBS fetcher. Processes satellite layers defined in
-    config.toml. Implements automated date fallback logic; if T-1 data
-    is not yet finalized (returns XML), it rolls back to T-2.
-
-🛠️ PREREQUISITES:
-    - core_service.py in ~/noaa/utilities
-    - requests (pip install requests)
-
+    Ingests satellite imagery from NASA GIBS. This version utilizes a
+    parametric look-back variable to determine search depth dynamically.
 ===============================================================================
 """
 
 import os
 import sys
-import datetime
+import requests
+import logging
+from datetime import datetime, timedelta
 from pathlib import Path
 
 # --- 🛠️ PRIORITY PATH INJECTION ---
-# 1. Force your local utilities directory to the absolute front
-util_path = str(Path.home() / "PycharmProjects" / "noaa" / "utilities")
-if util_path in sys.path:
-    sys.path.remove(util_path)
-sys.path.insert(0, util_path)
+current_file = Path(__file__).resolve()
+project_root = current_file.parent.parent
+util_path = project_root / "utilities"
 
-# 2. Clear any 'core_service' already cached from the .venv package
-if 'core_service' in sys.modules:
-    del sys.modules['core_service']
+if str(util_path) not in sys.path:
+    sys.path.insert(0, str(util_path))
 
-# 3. Now import your custom code safely
-from core_service import CoreService, load_safe_config, TerminalColor
+try:
+    from core_service import TerminalColor, init_mqtt, get_config
+except ImportError as e:
+    print(f"❌ [CRITICAL] Failed to load core_service: {e}")
+    sys.exit(1)
 
 
-class GibsFetcher(CoreService):
+class GIBSFetcher:
     """
-    Service class for NASA GIBS ingest with automated date fallback logic.
+    Main ingestion engine for NASA GIBS products.
+    Supports dynamic search depth via lookback_days parameter.
     """
 
-    def __init__(self, cfg_file: Path):
-        super().__init__("GIBS_FETCHER")
-        self.full_config = load_safe_config(str(cfg_file))
-        if not self.full_config:
-            raise RuntimeError(f"Failed to load config at {cfg_file}")
+    def __init__(self):
+        self.clr = TerminalColor()
+        self.config = get_config()
+        self.mqtt = init_mqtt()
 
-        self.gibs_cfg = self.full_config.get("gibs", {})
-        self.instr_root = Path(self.gibs_cfg.get("instrument_root", "/tmp"))
+        self.base_output = Path("/home/reza/Videos/satellite/gibs")
 
-        # Load the config
-        self.full_config = load_safe_config(str(cfg_file))
-        gibs_cfg = self.full_config.get("gibs", {})
+        # Load parameters from config.toml
+        gibs_cfg = self.config.get('gibs', {})
+        self.bbox = gibs_cfg.get('settings', {}).get('texas_bbox', "25.8,-106.6,36.5,-93.5")
 
-        # Define the new log path
-        log_base = Path(gibs_cfg.get("log_dir", "/tmp"))
-        log_base.mkdir(parents=True, exist_ok=True)
-        log_file = log_base / "satellite_health.log"
+        # PARAMETRIC TWEAK: Define the depth of the search window
+        self.lookback_days = gibs_cfg.get('lookback_days', 5)
 
-    def _attempt_download(self, url: str, save_path: Path, days_back: int) -> bool:
-        """
-        Internal helper to perform the stream and verify the content type.
-        """
-        success = self.stream_binary_resource(url, str(save_path))
+        logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+        self.logger = logging.getLogger(__name__)
 
-        if success:
-            # SANITY CHECK: Did we get a real JPEG or an XML Error?
-            with open(save_path, 'rb') as f:
-                header = f.read(5)
-                if b"<?xml" in header or b"<Serv" in header:
-                    self.logger.warning(
-                        f"{self.clr.WARNING}⚠️  NASA Exception at T-{days_back}. Data not ready.{self.clr.ENDC}")
-                    save_path.unlink()  # Delete the "fake" JPEG (XML file)
-                    return False
-            return True
-        return False
+    def download_image(self, url, filepath):
+        """Downloads image and performs a preliminary XML check."""
+        try:
+            response = requests.get(url, timeout=30, stream=True)
+            response.raise_for_status()
 
-    def fetch_all_targets(self):
-        """
-        Iterates through targets. If T-1 fails/XMLs, it attempts T-2.
-        """
-        targets = self.gibs_cfg.get("targets", [])
-        if not targets:
-            self.logger.warning("No targets found in config.")
-            return
+            content_type = response.headers.get('Content-Type', '')
+            if 'xml' in content_type or 'text' in content_type:
+                return False, "ERR_XML_001: Data not ready (NASA XML Exception)"
 
-        self.logger.info(f"{self.clr.BOLD}📡 Starting GIBS Ingest Cycle (with T-2 Fallback){self.clr.ENDC}")
+            with open(filepath, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            return True, "Success"
 
-        for target in targets:
-            name = target.get("name")
-            base_url = target.get("url")
-            subdir = target.get("subdir", "general")
+        except Exception as e:
+            return False, f"Download Error: {str(e)}"
 
-            # Resolve Directory
-            out_path = self.instr_root / subdir
-            out_path.mkdir(parents=True, exist_ok=True)
+    def fetch_all_layers(self):
+        """Iterates through layers using a dynamic lookback window."""
+        self.logger.info(f"{self.clr.HEADER}🛰️  BeUlta Ingest Started | Depth: T-{self.lookback_days}{self.clr.ENDC}")
 
-            downloaded = False
-            # Try T-1, then Fallback to T-2
-            for days_back in [1, 2]:
-                target_date = (datetime.datetime.now() - datetime.timedelta(days=days_back)).strftime("%Y-%m-%d")
-                filename = f"{name}_{target_date}.jpg"
-                save_file = out_path / filename
-                request_url = base_url.replace("{TIME}", target_date)
+        layers = self.config.get('gibs', {}).get('layers', [])
+        today = datetime.now()
 
-                self.logger.info(f"🔄 Attempting {name} for {target_date} (T-{days_back})")
+        for layer in layers:
+            name = layer['name']
+            subdir = layer['subdir']
+            raw_url = layer['url']
 
-                if self._attempt_download(request_url, save_file, days_back):
-                    self.mqtt_publish(f"beulta/gibs/{name}/status", f"SUCCESS_T{days_back}")
-                    downloaded = True
-                    break  # Move to next target
+            output_dir = self.base_output / subdir
+            output_dir.mkdir(parents=True, exist_ok=True)
 
-            if not downloaded:
-                self.logger.error(f"{self.clr.FAIL}❌ Failed to retrieve {name} after T-2 fallback.{self.clr.ENDC}")
-                self.mqtt_publish(f"beulta/gibs/{name}/status", "CRITICAL_FAILURE")
+            success = False
+
+            # Line 109 (Approx): Loop limit now uses the variable
+            for days_back in range(1, self.lookback_days + 1):
+                target_dt = today - timedelta(days=days_back)
+                date_str = target_dt.strftime("%Y-%m-%d")
+
+                final_url = raw_url.replace("{TIME}", date_str).replace("{BBOX}", self.bbox)
+
+                filename = f"{name}_{date_str}.jpg"
+                save_path = output_dir / filename
+
+                self.logger.info(f"🔄 Processing {name} for {date_str} (T-{days_back})")
+
+                downloaded, msg = self.download_image(final_url, save_path)
+
+                if downloaded:
+                    self.logger.info(f"✅ Successfully saved: {filename}")
+                    success = True
+                    break
+                else:
+                    self.logger.warning(f"⚠️ {msg}")
+
+            if not success:
+                # Line 133 (Approx): Error statement now reflects the dynamic variable
+                self.logger.error(
+                    f"{self.clr.FAIL}❌ Critical Failure: {name} unavailable after T-{self.lookback_days} attempt.{self.clr.ENDC}")
+                if self.mqtt:
+                    self.mqtt.publish(f"beulta/ingest/failure", name)
 
 
 if __name__ == "__main__":
-    current_dir = Path(__file__).resolve().parent
-    config_path = current_dir.parent / "config.toml"
-
-    try:
-        fetcher = GibsFetcher(config_path)
-        fetcher.fetch_all_targets()
-        print(f"\n{TerminalColor.OKGREEN}🏁 Ingest Cycle Complete.{TerminalColor.ENDC}")
-    except Exception as e:
-        print(f"\n{TerminalColor.FAIL}💥 Fatal Execution Error: {e}{TerminalColor.ENDC}")
-        sys.exit(1)
+    fetcher = GIBSFetcher()
+    fetcher.fetch_all_layers()
