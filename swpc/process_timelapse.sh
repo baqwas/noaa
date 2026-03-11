@@ -1,77 +1,63 @@
 #!/bin/bash
 # -----------------------------------------------------------------------------
-# 🌌 NAME          : process_timelapse.sh
+# 📅 NAME          : process_timelapse.sh
+# 🚀 DESCRIPTION   : Core FFmpeg Rendering Engine for BeUlta Satellite Suite.
+#                   Converts image sequences to H.264 MP4.
+#                   Supports conditional text overlays (e.g., "HAZY DAY").
 # 👤 AUTHOR        : Matha Goram / BeUlta Suite
-# 🔖 VERSION       : 1.2.4 (Enhanced for Consolidated Workflow)
 # 📅 UPDATED       : 2026-03-07
-# 📝 DESCRIPTION   : Converts raw satellite imagery into MP4 videos.
-#                    Now includes image archival to prevent directory bloat.
 # ⚖️ LICENSE       : MIT License (c) 2026 ParkCircus Productions
 # -----------------------------------------------------------------------------
 
-# --- 🎨 ANSI Color Palette ---
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m';
-BLUE='\033[0;34m'; NC='\033[0m'; BOLD='\033[1m';
+# --- 📥 Arguments ---
+IMG_DIR="$1"      # Source directory of daily JPEGs
+VID_DIR="$2"      # Destination for the MP4
+TARGET_NAME="$3"  # e.g., "true_color" or "goes_east"
+OVERLAY_TEXT="$4" # Optional: "HAZY DAY" or empty
 
-# --- 📥 Input Arguments ---
-IMG_DIR="$1"
-VID_DIR="$2"
-LABEL="$3"
-# Use yesterday's date for the filename as we compile at 00:30
-DATE=$(date -d "yesterday" +%Y-%m-%d)
-
-# --- 🛡️ Validation Gate ---
-if [[ -z "$IMG_DIR" || ! -d "$IMG_DIR" ]]; then
-    echo -e "${RED}❌ [ERROR]${NC} Invalid image directory: $IMG_DIR"
-    exit 1
-fi
-
-TARGET_ROOT=$(dirname "$IMG_DIR")
-LOG="${TARGET_ROOT}/processing.log"
-ARCHIVE_DIR="${TARGET_ROOT}/archive/${DATE}"
+# --- ⚙️ Internal Config ---
+DATE_STAMP=$(date +%Y-%m-%d)
+OUTPUT_FILE="${VID_DIR}/${TARGET_NAME}_${DATE_STAMP}.mp4"
 mkdir -p "$VID_DIR"
 
-# --- 🔍 Image Discovery ---
-shopt -s nullglob
-FILES=("$IMG_DIR"/*.[jJ][pP][gG] "$IMG_DIR"/*.[pP][nN][gG])
-TOTAL_FRAMES=${#FILES[@]}
+# UI Styling
+BLUE='\033[0;34m'; YELLOW='\033[1;33m'; NC='\033[0m'
 
-if [ "$TOTAL_FRAMES" -lt 24 ]; then
-    echo -e "${YELLOW}⚠️  [SKIP]${NC} Only ${TOTAL_FRAMES} images found for $LABEL. Minimum 24 required."
-    exit 0
+# --- 🎨 FFmpeg Filter Logic ---
+# Base filter: scale to 4k width, ensure height is divisible by 2 for H.264
+FILTER="scale=4096:-2"
+
+if [[ -n "$OVERLAY_TEXT" ]]; then
+    echo -e "${YELLOW}🖌️  Applying Filter: [${OVERLAY_TEXT}]${NC}"
+    # drawtext parameters:
+    # x,y: Top Right (w-tw-100, 100)
+    # box: Creates a semi-transparent black background for the yellow text
+    TEXT_FILTER="drawtext=text='${OVERLAY_TEXT}':fontcolor=yellow:fontsize=120:box=1:boxcolor=black@0.6:boxborderw=20:x=w-tw-100:y=100"
+    FILTER="${FILTER},${TEXT_FILTER}"
 fi
 
-OUT_FILE="${VID_DIR}/${LABEL}_${DATE}.mp4"
-echo -e "${BLUE}🚀 [START]${NC} Rendering ${BOLD}${LABEL}${NC} (${TOTAL_FRAMES} frames)..."
+# --- 🎬 Rendering Execution ---
+echo -e "${BLUE}🎞️  Rendering ${TARGET_NAME}...${NC}"
 
-# --- 🎞️ FFmpeg Execution ---
-# Generate temp file list for the concat demuxer
-printf "file '%s'\n" "${FILES[@]}" > "${TARGET_ROOT}/files.txt"
+# FFmpeg Command Breakdown:
+# -y: Overwrite output
+# -framerate 12: Smooth 12fps for 24-frame daily sequences
+# -pattern_type glob: Handles non-sequential filenames
+# -pix_fmt yuv420p: Maximum compatibility for your Thunderbird/Mobile clients
+ffmpeg -y -hide_banner -loglevel error \
+    -framerate 12 \
+    -pattern_type glob -i "${IMG_DIR}/*.jpg" \
+    -vf "${FILTER}" \
+    -c:v libx264 \
+    -preset medium \
+    -crf 23 \
+    -pix_fmt yuv420p \
+    "$OUTPUT_FILE"
 
-ffmpeg -nostdin -y -r 24 -f concat -safe 0 -i "${TARGET_ROOT}/files.txt" \
-       -c:v libx264 -pix_fmt yuv420p -profile:v high -level 4.2 \
-       -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2,setsar=1" \
-       -preset medium -crf 23 \
-       "$OUT_FILE" >> "$LOG" 2>&1
-
-RENDER_STATUS=$?
-
-# Cleanup temp file
-rm -f "${TARGET_ROOT}/files.txt"
-
-# --- 🏁 Exit Logic & Housekeeping ---
-if [ $RENDER_STATUS -eq 0 ]; then
-    echo "[$(date)] ✅ SUCCESS: $OUT_FILE" >> "$LOG"
-    echo -e "${GREEN}✅ [SUCCESS]${NC} Video archived: ${BOLD}$(basename "$OUT_FILE")${NC}"
-
-    # --- 🧹 Housekeeping: Move processed images to archive ---
-    mkdir -p "$ARCHIVE_DIR"
-    mv "$IMG_DIR"/* "$ARCHIVE_DIR/"
-    echo "[$(date)] 🧹 Cleanup: Images moved to $ARCHIVE_DIR" >> "$LOG"
-
+# --- 🏁 Exit Status ---
+if [ $? -eq 0 ]; then
+    # Optional: Log the success for the Visibility Audit to see
     exit 0
 else
-    echo "[$(date)] ❌ FAILED: Render error for $LABEL" >> "$LOG"
-    echo -e "${RED}❌ [FAILED]${NC} Check $LOG for FFmpeg errors."
     exit 1
 fi

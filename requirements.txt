@@ -27,3 +27,7 @@ mariadb
 sqlalchemy
 python-dotenv
 numpy
+
+tomli
+
+opencv-python
