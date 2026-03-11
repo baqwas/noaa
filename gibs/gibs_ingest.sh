@@ -60,6 +60,9 @@ elif [ $HEALTH_EXIT -eq 2 ]; then
     echo -e "${YELLOW}⚠️  [NOTICE] Data drift detected, but proceeding with ingest.${NC}"
 fi
 
+echo "🧹 [MAINTENANCE] Pruning assets older than 30 days..."
+/home/reza/PycharmProjects/noaa/.venv/bin/python /home/reza/PycharmProjects/noaa/gibs/gibs_cleanup.py
+
 # Step 2: Ingest Data
 echo -e "\n${CYAN}----------------------------------------------------${NC}"
 echo -e "🛰️  ${GREEN}BeUlta Ingest Started${NC} | Root: $PROJECT_ROOT"

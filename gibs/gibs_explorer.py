@@ -1,140 +1,191 @@
+#!/usr/bin/env python3
+"""
+===============================================================================
+🚀 PROJECT      : BeUlta Satellite Suite
+📦 MODULE       : gibs_explorer.py
+👤 AUTHOR        : Reza / BeUlta Suite
+🔖 VERSION       : 1.9.0
+📅 LAST UPDATE  : 2026-03-11
+⚖️ COPYRIGHT     : (c) 2026 ParkCircus Productions
+📜 LICENSE       : MIT License
+===============================================================================
+
+📑 VERSION HISTORY:
+    - 1.8.0: Deep Sweep Metadata Parser with Regex date extraction.
+    - 1.9.0: Active-Only Filter. Suppressed [HISTORIC] layers. Refined Status
+             column to icon-only (⭐/⏳). Updated stats to show Active/Recent.
+
+📝 DESCRIPTION:
+    A high-precision discovery tool for NASA GIBS. This version filters out
+    legacy data to show only contemporary 2025-2026 satellite streams.
+===============================================================================
+"""
+
 import tkinter as tk
 from tkinter import ttk, messagebox, font as tkfont
 import requests
 import xml.etree.ElementTree as ET
 import threading
-from datetime import datetime, timedelta
+import re
 
 
 class GIBSExplorer:
     def __init__(self, root):
         self.root = root
-        self.root.title("NASA GIBS 2026 High-Density Discovery")
-        self.root.geometry("1200x950")
+        self.root.title("NASA GIBS 2026 Discovery (v1.9.0 Active-Only)")
+        self.root.geometry("1200x900")
 
-        # --- Dynamic Style Configuration ---
         self.style = ttk.Style()
         self.style.theme_use('clam')
 
-        # Measure font to prevent overlapping rows
         self.tree_font = tkfont.Font(family="Helvetica", size=10)
-        row_pad = self.tree_font.metrics("linespace") + 12  # Extra padding for Linux/Ubuntu
-
-        self.style.configure("Treeview", rowheight=row_pad, font=self.tree_font)
-        self.style.configure("Treeview.Heading", font=(self.tree_font.actual("family"), 10, "bold"))
+        self.style.configure("Treeview", rowheight=32, font=self.tree_font)
 
         self.layers_data = {}
-        # Using the /all/ endpoint to ensure we catch every 2026 heartbeat
         self.xml_url = "https://gibs.earthdata.nasa.gov/wmts/epsg4326/all/1.0.0/WMTSCapabilities.xml"
-        self.freshness_threshold = datetime.now() - timedelta(days=30)
 
         self.setup_ui()
         threading.Thread(target=self.fetch_layers, daemon=True).start()
 
     def setup_ui(self):
-        top = ttk.Frame(self.root, padding="10")
-        top.pack(fill=tk.X)
+        main_frame = ttk.Frame(self.root, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
 
-        ttk.Label(top, text="🔍 Filter (ID or Title):").pack(side=tk.LEFT)
+        header_frame = ttk.Frame(main_frame)
+        header_frame.pack(fill=tk.X, pady=(0, 10))
+
+        ttk.Label(header_frame, text="🔍 Search: ").pack(side=tk.LEFT)
         self.search_var = tk.StringVar()
         self.search_var.trace_add("write", self.filter_list)
-        ttk.Entry(top, textvariable=self.search_var, width=50).pack(side=tk.LEFT, padx=10)
 
-        self.status = ttk.Label(top, text="🛰️ Parsing NASA Manifest...", foreground="orange")
+        self.search_entry = ttk.Entry(header_frame, textvariable=self.search_var, width=35)
+        self.search_entry.pack(side=tk.LEFT, padx=5)
+
+        # Updated Eye-Candy: Shows counts for the two visible categories
+        self.stats_label = ttk.Label(header_frame, text="0 ⭐ | 0 ⏳", font=("Helvetica", 10, "bold"))
+        self.stats_label.pack(side=tk.LEFT, padx=15)
+
+        self.status = ttk.Label(header_frame, text="⏳ Analyzing Live Streams...", foreground="orange")
         self.status.pack(side=tk.RIGHT)
 
-        paned = ttk.PanedWindow(self.root, orient=tk.VERTICAL)
-        paned.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        # --- Table Configuration ---
+        columns = ("status", "id", "title", "data_range")
+        self.tree = ttk.Treeview(main_frame, columns=columns, show='headings')
 
-        # Main List (25 rows)
-        tree_frame = ttk.Frame(paned)
-        self.tree = ttk.Treeview(tree_frame, columns=("ID", "Title", "Pulse"), show='headings', height=25)
-        self.tree.heading("ID", text="Identifier")
-        self.tree.heading("Title", text="Descriptive Title")
-        self.tree.heading("Pulse", text="Latest Update")
+        self.tree.heading("status", text="")
+        self.tree.heading("id", text="NASA Identifier")
+        self.tree.heading("title", text="Description")
+        self.tree.heading("data_range", text="Temporal Metadata")
 
-        self.tree.column("ID", width=350)
-        self.tree.column("Title", width=450)
-        self.tree.column("Pulse", width=120, anchor="center")
+        self.tree.column("status", width=35, anchor="center")
+        self.tree.column("id", width=380)
+        self.tree.column("title", width=420)
+        self.tree.column("data_range", width=260)
 
-        vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
-        self.tree.configure(yscrollcommand=vsb.set)
+        scrollbar = ttk.Scrollbar(main_frame, orient=tk.VERTICAL, command=self.tree.yview)
+        self.tree.configure(yscroll=scrollbar.set)
+        self.tree.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y, in_=self.tree)
 
-        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        vsb.pack(side=tk.RIGHT, fill=tk.Y)
-        paned.add(tree_frame, weight=4)
-
-        # Details
-        self.details = tk.Text(paned, height=8, state='disabled', bg="#1a1a1a", fg="#00ff41",
-                               font=('Courier New', 11), padx=15, pady=15)
-        paned.add(self.details, weight=1)
-
+        self.details = tk.Text(main_frame, height=5, state='disabled', background="#fdfdfd", font=("Courier", 10))
+        self.details.pack(fill=tk.X, pady=(10, 0))
         self.tree.bind("<<TreeviewSelect>>", self.handle_selection)
 
     def fetch_layers(self):
         try:
-            r = requests.get(self.xml_url, timeout=45)
-            root_xml = ET.fromstring(r.content)
-            ns = {'w': 'http://www.opengis.net/wmts/1.0', 'o': 'http://www.opengis.net/ows/1.1'}
+            response = requests.get(self.xml_url, timeout=60)
+            response.raise_for_status()
+            root = ET.fromstring(response.content)
 
-            valid = 0
-            for layer in root_xml.findall(".//w:Layer", ns):
-                ident = layer.find("o:Identifier", ns).text
-                title = layer.find("o:Title", ns).text if layer.find("o:Title", ns) is not None else "N/A"
-                time_node = layer.find(".//w:Dimension[o:Identifier='Time']/w:Value", ns)
+            ns = {'wmts': 'http://www.opengis.net/wmts/1.0', 'owc': 'http://www.opengis.net/ows/1.1'}
 
-                if time_node is not None:
-                    try:
-                        # Fixed Logic for end date extraction
-                        full_text = time_node.text
-                        end_date_str = full_text.split('/')[-2] if '/' in full_text else full_text
-                        end_dt = datetime.strptime(end_date_str, "%Y-%m-%d")
+            for layer in root.findall('.//wmts:Layer', ns):
+                lid = layer.find('owc:Identifier', ns).text
+                title = layer.find('owc:Title', ns).text
 
-                        if end_dt >= self.freshness_threshold:
-                            self.layers_data[ident] = {
-                                'end': end_date_str,
-                                'range': full_text,
-                                'title': title
-                            }
-                            valid += 1
-                    except:
-                        continue
+                layer_xml_str = ET.tostring(layer, encoding='unicode')
+                dates = re.findall(r'\d{4}-\d{2}-\d{2}', layer_xml_str)
+                latest = max(dates) if dates else "N/A"
+
+                # Check for Continuous markers
+                if "9999-12-31" in layer_xml_str:
+                    latest = "2026 (NRT)"
+                    display_range = "Continuous / 2026 NRT"
+                elif len(dates) >= 2:
+                    display_range = f"{min(dates)} TO {max(dates)}"
+                elif len(dates) == 1:
+                    display_range = f"Active since {dates[0]}"
+                else:
+                    display_range = "N/A"
+
+                # Logic: Only keep it if it's 2025 or 2026
+                if "2026" in latest or "2025" in latest or "nrt" in latest.lower():
+                    self.layers_data[lid] = {
+                        'title': title,
+                        'range': display_range,
+                        'latest': latest,
+                        'raw': layer_xml_str.lower()
+                    }
 
             self.root.after(0, self.update_list, sorted(self.layers_data.keys()))
-            self.root.after(0, lambda: self.status.config(text=f"✅ {valid} Live Layers Found", foreground="green"))
+            self.root.after(0, lambda: self.status.config(text="✅ Sync Ready", foreground="green"))
+
         except Exception as e:
             self.root.after(0, lambda: messagebox.showerror("NASA Error", str(e)))
 
     def update_list(self, keys):
         self.tree.delete(*self.tree.get_children())
+        star_count = 0
+        hour_count = 0
+
         for k in keys:
             d = self.layers_data[k]
-            self.tree.insert("", tk.END, values=(k, d['title'], d['end']))
+
+            if "2026" in d['latest'] or "nrt" in d['latest'].lower():
+                status_icon = "⭐"
+                star_count += 1
+            else:
+                status_icon = "⏳"
+                hour_count += 1
+
+            self.tree.insert("", tk.END, values=(status_icon, k, d['title'], d['range']))
+
+        self.stats_label.config(text=f"📊 {star_count} ⭐ | {hour_count} ⏳")
 
     def filter_list(self, *args):
-        term = self.search_var.get().lower()
-        keys = [k for k in self.layers_data.keys() if term in k.lower() or term in self.layers_data[k]['title'].lower()]
-        self.update_list(sorted(keys))
+        query = self.search_var.get().lower().strip()
+        tokens = query.split()
+
+        if not tokens:
+            self.update_list(sorted(self.layers_data.keys()))
+            return
+
+        matches = []
+        for lid, meta in self.layers_data.items():
+            if all(t in meta['raw'] or t in lid.lower() or t in meta['title'].lower() for t in tokens):
+                matches.append(lid)
+
+        self.update_list(sorted(matches))
 
     def handle_selection(self, event):
         sel = self.tree.selection()
         if not sel: return
-        layer_id = self.tree.item(sel[0], "values")[0]
-        d = self.layers_data[layer_id]
+        lid = self.tree.item(sel[0], "values")[1]
+        meta = self.layers_data[lid]
 
-        info = f"🚀 IDENTIFIER : {layer_id}\n📝 TITLE      : {d['title']}\n📅 DATA RANGE : {d['range'].replace('/', '  TO  ')}\n"
-        info += "=" * 70 + "\nCOPIED TO CLIPBOARD"
+        info = f"🚀 ID: {lid}\n📅 TEMPORAL: {meta['range']}\n"
+        info += "-" * 60 + "\n[ID COPIED TO CLIPBOARD]"
 
         self.details.config(state='normal')
-        self.details.delete('1.0', tk.END);
+        self.details.delete('1.0', tk.END)
         self.details.insert(tk.END, info)
         self.details.config(state='disabled')
 
-        self.root.clipboard_clear();
-        self.root.clipboard_append(layer_id)
+        self.root.clipboard_clear()
+        self.root.clipboard_append(lid)
 
 
 if __name__ == "__main__":
     root = tk.Tk()
-    GIBSExplorer(root)
+    app = GIBSExplorer(root)
     root.mainloop()
