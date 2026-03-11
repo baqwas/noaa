@@ -117,7 +117,7 @@ jobs:
           git add README.md
           # The [skip ci] is crucial to avoid recursive workflow loops
           git commit -m "chore: auto-update health stats [skip ci]" || exit 0
-          git push origin master
+          git push origin main
 
   # --- JOB 5: WORKSPACE CLEANUP ---
   cleanup_workspace:
