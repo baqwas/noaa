@@ -8,7 +8,7 @@ on:
     branches: [ master, main ]
   pull_request:
     branches: [ master, main ]
-  workflow_dispatch: # Allows manual trigger from the Actions tab
+  workflow_dispatch:
 
 jobs:
   # --- JOB 1: SECRET SCANNING ---
@@ -19,7 +19,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Required for ggshield history scanning
+          fetch-depth: 0
 
       - name: GitGuardian Scan
         uses: GitGuardian/ggshield-action@v1.48.0
@@ -32,7 +32,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: secrets_scan
     outputs:
-      drift: ${{ steps.calc_drift.outputs.drift_val }} # Exports drift to the UI job
+      drift: ${{ steps.calc_drift.outputs.drift_val }}
+      status_icon: ${{ steps.calc_drift.outputs.status_icon }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -48,14 +49,11 @@ jobs:
       - id: calc_drift
         name: Execute Spatial Audit
         run: |
-          # Run the script and extract the drift value from stdout
           OUTPUT=$(python utilities/check_spatial_audit.py)
-          # We assume the python script prints 'DRIFT_VALUE: X.XXXX'
           DRIFT=$(echo "$OUTPUT" | grep "DRIFT_VALUE:" | cut -d':' -f2 | xargs)
           STATUS=$(echo "$OUTPUT" | grep "DRIFT_STATUS:" | cut -d':' -f2 | xargs)
-
           echo "drift_val=$DRIFT" >> $GITHUB_OUTPUT
-          echo "status_icon=$STATUS" >> $GITHUB_OUTPUT # <--- ADD THIS
+          echo "status_icon=$STATUS" >> $GITHUB_OUTPUT
 
   # --- JOB 3: GENERATE REPORT ARTIFACT ---
   generate_report:
@@ -95,19 +93,15 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-            token: ${{ secrets.GH_PAT }} # Use the Personal Access Token here
+            token: ${{ secrets.GH_PAT }}
+            ref: main # <--- PERMANENT FIX PART 1: Ensures we are on the branch head
 
       - name: Inject Stats into README
         run: |
           TIMESTAMP=$(date +'%Y-%m-%d %H:%M')
           DRIFT="${{ needs.spatial_audit.outputs.drift }}"
           ICON="${{ needs.spatial_audit.outputs.status_icon }}"
-
-          # Update the Health Check line
           sed -i "s|Last Health Check: [^|]*|Last Health Check: $TIMESTAMP |g" README.md
-
-          # Update the Drift line with the Status Icon
-          # Target: Drift: [ANYTHING] km_
           sed -i "s|Drift: .*|Drift: $ICON $DRIFT km_|g" README.md
 
       - name: Commit and Push Changes
@@ -115,9 +109,13 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add README.md
-          # The [skip ci] is crucial to avoid recursive workflow loops
-          git commit -m "chore: auto-update health stats [skip ci]" || exit 0
-          git push origin main
+
+          # PERMANENT FIX PART 2: Robust Push Logic
+          # Only commit if changes exist to prevent 'nothing to commit' failures
+          git diff-index --quiet HEAD || git commit -m "chore: auto-update health stats [skip ci]"
+
+          # Explicitly push the current HEAD to the remote 'main' branch
+          git push origin HEAD:main
 
   # --- JOB 5: WORKSPACE CLEANUP ---
   cleanup_workspace:
