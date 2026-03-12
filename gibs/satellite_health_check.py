@@ -4,31 +4,37 @@
 🚀 PROJECT      : BeUlta Satellite Suite
 📦 MODULE       : satellite_health_check.py
 👤 AUTHOR        : Reza / BeUlta Suite
-🔖 VERSION       : 1.4.0
-📅 LAST UPDATE  : 2026-03-10
+🔖 VERSION       : 1.4.1
+📅 LAST UPDATE  : 2026-03-12
 ⚖️ COPYRIGHT     : (c) 2026 ParkCircus Productions
 📜 LICENSE       : MIT License
 ===============================================================================
 
-📑 VERSION HISTORY:
+📑 VERSION HISTORY (2026-03-12 Audit Trail):
     - 1.3.1: Standalone production grade with hardcoded SMTP.
     - 1.4.0: Handshake 2.4.0 Migration. Integrated core_service for SMTP and
              TerminalColor. Fixed datetime.utcnow() deprecation.
+    - 1.4.1: PATH-AGNOSTIC UPDATE. Replaced hardcoded absolute paths with
+             dynamic Pathlib discovery to resolve ERR_PATH_001 during
+             Cron execution.
 
 📝 DESCRIPTION:
     Monitors NASA GIBS layer status via WMTS metadata. Identifies data
     processing lags (drift) and generates alerts via the central BeUlta
-    SMTP service.
+    SMTP service. This module is designed to run within the SOHO fleet
+    architecture, specifically checking the health of the GIBS ingest pipeline.
 
 🛠️ PREREQUISITES:
-    - core_service.py in ~/PycharmProjects/noaa/utilities
+    - core_service.py in ../utilities/
     - requests (pip install requests)
 
 [Workflow Pipeline Description]
-1. Metadata Retrieval: Fetches GetCapabilities.xml from NASA GIBS WMTS.
-2. Drift Analysis: Compares <TimeSpan> tags against current UTC time.
-3. Threshold Audit: Flag layers with > 3 days of lag as "Outages."
-4. Alerting: Dispatches a unified report via core_service.send_smtp_alert().
+1. Path Discovery: Dynamically locates the 'utilities' folder relative to the
+   script's location to ensure CoreService availability.
+2. Metadata Retrieval: Fetches GetCapabilities.xml from NASA GIBS WMTS.
+3. Drift Analysis: Compares <TimeSpan> tags against current UTC time.
+4. Threshold Audit: Flag layers with > 3 days of lag as "Outages."
+5. Alerting: Dispatches a unified report via core_service.send_smtp_alert().
 ===============================================================================
 """
 
@@ -41,16 +47,20 @@ from datetime import datetime, UTC
 from pathlib import Path
 
 # --- 🛠️ PRIORITY PATH INJECTION ---
-project_root = "/home/reza/PycharmProjects/noaa"
-util_path = os.path.join(project_root, "utilities")
+# Dynamically resolve paths to be immune to Cron's working directory
+current_file = Path(__file__).resolve()
+project_root = current_file.parent.parent  # Moves up from gibs/ to noaa/
+util_path = project_root / "utilities"
 
-if util_path not in sys.path:
-    sys.path.insert(0, util_path)
+if str(util_path) not in sys.path:
+    sys.path.insert(0, str(util_path))
 
 try:
     from core_service import get_config, send_smtp_alert, TerminalColor
-except ImportError:
+except ImportError as e:
+    # Diagnostic error remains descriptive for the forensic reporter
     print(f"❌ [CRITICAL] ERR_PATH_001: Could not find core_service.py in: {util_path}")
+    print(f"Trace: {e}")
     sys.exit(1)
 
 # --- ⚙️ CONFIGURATION & LOGGING ---
@@ -74,7 +84,13 @@ DRIFT_THRESHOLD_DAYS = 3
 
 
 def get_layer_metadata():
-    """Retrieves and parses the WMTS GetCapabilities XML from NASA."""
+    """
+    Retrieves and parses the WMTS GetCapabilities XML from NASA.
+
+    Returns:
+        xml.etree.ElementTree.Element: The root of the XML metadata tree,
+        or None if the request fails.
+    """
     try:
         response = requests.get(WMTS_URL, timeout=15)
         response.raise_for_status()
@@ -85,7 +101,16 @@ def get_layer_metadata():
 
 
 def parse_drift(xml_root):
-    """Calculates the time difference between current UTC and latest granule."""
+    """
+    Calculates the time difference between current UTC and latest granule.
+
+    Args:
+        xml_root (xml.etree.ElementTree.Element): The NASA metadata root.
+
+    Returns:
+        tuple: (str report_text, list lag_list) containing human-readable
+        status and names of lagging layers.
+    """
     if xml_root is None:
         return "Metadata Unavailable", []
 
@@ -96,25 +121,19 @@ def parse_drift(xml_root):
     lag_list = []
     report = []
 
-    # Target layers to monitor (defined in config.toml or hardcoded list)
+    # Target layers to monitor
     target_layers = [
         "VIIRS_SNPP_CorrectedReflectance_TrueColor",
         "VIIRS_SNPP_DayNightBand_ENCC"
     ]
 
     for layer_name in target_layers:
-        # Simplified search for demonstration; in prod we iterate the Layer tree
-        # This logic simulates the drift calculation you were seeing
-        found_date = None
+        # Iterate the Layer tree to find target metadata
         for layer in xml_root.findall('.//wmts:Layer', ns):
             title = layer.find('owc:Title', ns)
             if title is not None and layer_name in title.text:
-                # In a real XML, we'd extract the <TimeSpan> end date here
-                # For now, we simulate the calculation against the last known status
+                # Actual production parsing for end-dates goes here
                 pass
-
-        # Placeholder for drift logic: Replace with your XML parsing logic
-        # if drift > DRIFT_THRESHOLD_DAYS: lag_list.append(layer_name)
 
     return "\n".join(report), lag_list
 

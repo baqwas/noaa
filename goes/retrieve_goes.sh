@@ -1,44 +1,29 @@
 #!/usr/bin/env bash
 # -----------------------------------------------------------------------------
-# Name:         run_goes_retrieval.sh
-# Description:  Professional wrapper for the Unified GOES Retrieval System.
-#               Manages environment checks, execution, and granular logging.
-# Author:       Matha Goram
-# Version:      1.0.0
-# Updated:      2026-02-04
-# License:      MIT License
-# Copyright:    (c) 2026 ParkCircus Productions; All Rights Reserved
+# Name:         retrieve_goes.sh
+# Version:      1.1.0 (Standardized Wrapper)
 # -----------------------------------------------------------------------------
+BLUE='\033[0;34m'; GREEN='\033[0;32m'; RED='\033[0;31m'; NC='\033[0m'
 
-# --- Configuration & Styling ---
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-BOLD='\033[1m'
-NC='\033[0m' # No Color
-
-# --- Paths ---
 PROJ_ROOT="/home/reza/PycharmProjects/noaa"
 VENV="${PROJ_ROOT}/.venv/bin/activate"
 PYTHON_SCRIPT="${PROJ_ROOT}/goes/retrieve_goes.py"
+LOG_FILE="/home/reza/Videos/satellite/goes/logs/retrieval_shell.log"
 
-# Standard UI Styling
-BLUE='\033[0;34m'; GREEN='\033[0;32m'; RED='\033[0;31m'; NC='\033[0m'
-
-echo -e "${BLUE}[$(date)] Starting GOES Retrieval Cycle...${NC}"
+echo -e "${BLUE}[$(date)] Initializing GOES Retrieval Cycle...${NC}"
 
 if [[ ! -f "$VENV" ]]; then
-    echo -e "${RED}[ERROR] Virtual environment not found at $VENV${NC}"
+    echo -e "${RED}[ERROR] Virtual environment missing at $VENV${NC}"
     exit 1
 fi
 
 source "$VENV"
-python3 "$PYTHON_SCRIPT"
+# Redirect output to log file for forensic history
+python3 "$PYTHON_SCRIPT" >> "$LOG_FILE" 2>&1
 
 if [[ $? -eq 0 ]]; then
-    echo -e "${GREEN}[SUCCESS] Images retrieved. Check ${PROJ_ROOT}/goes/${NC}"
+    echo -e "${GREEN}✅ GOES Retrieval Successful.${NC}"
 else
-    echo -e "${RED}[FAILURE] Check logs for specific error details.${NC}"
+    echo -e "${RED}❌ GOES Retrieval Failed. Check logs.${NC}"
     exit 1
 fi
