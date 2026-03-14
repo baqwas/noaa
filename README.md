@@ -59,20 +59,19 @@ Tasks are staggered to optimize CPU/IO load, ensuring `ffmpeg` rendering doesn't
 4.  🎬 **Processing**: Nightly `ffmpeg` renders occur at 23:50 to close the daily data loop.
 
 ---
+## 🩺 5. Diagnostics & Contract Protection
+### 🛡️ The Contract Auditor (`test_core_contract.py`)
+This suite utilizes a **Hard-Gate Contract** strategy. Before any production code is executed, the system validates the "handshake" between the code and the SOHO environment.
+* ✅ **Environment Hydration**: Detects uninitialized `.env` files by verifying that `${VAR}` placeholders in `config.toml` have been replaced with real credentials.
+* ✅ **Path Integrity**: Validates absolute SOHO paths against the `Day 0` architecture.
+* ✅ **Dependency Mapping**: Confirms that required sub-system blocks (`[goes]`, `[swpc]`, etc.) are present and well-formed.
 
-## 🩺 5. Diagnostics & Health Monitoring
-### 🐕 The Auditor (`system_audit.py`)
-This central watchdog script performs three critical checks every 6 hours:
-* ✅ **Hierarchy Integrity**: Validates mandated `/images` and `/videos` directories.
-* 🔍 **Orphan Detection**: Locates raw frames sitting outside of designated folders.
-* 🚨 **Storage Health**: Dispatches a `[CRITICAL]` SMTP alert if `/home` usage exceeds 80%.
-
-### ⚠️ Error Matrix
+### ⚠️ Error Matrix (Forensic Codes)
 | 🏷️ Code | ⚡ Severity | 🛠️ Resolution |
 | :--- | :--- | :--- |
-| `[CRITICAL]` | 🔴 High | Clear storage; check for runaway log files. |
-| `[FAIL]` | 🟡 Med | Re-create missing sub-directories via `mkdir -p`. |
-| `[ORPHAN]` | 🔵 Low | Run migration script to move loose files into `/images`. |
+| `[CRITICAL]` | 🔴 High | Contract Broken; check `.env` hydration or `config.toml` keys. |
+| `[FAIL]` | 🟡 Med | I/O Error; check directory write permissions. |
+| `[RETRY]` | 🔵 Low | Latency detected; Exponential Backoff initiated (5s, 25s, 125s). |
 
 ---
 
@@ -110,10 +109,23 @@ nano swpc/config.toml
 ```
 
 ---
+
+## 🏗️ 7. Development & Resilience Standards
+### 📅 Temporal Isolation (T-1 Protocol)
+To eliminate multi-day video bloat, all ingest and render tasks are now date-locked to **Yesterday (T-1)**.
+* **Precision Ingest**: Filenames are strictly stamped as `[instrument]_[YYYYMMDD]_[timestamp].jpg`.
+* **Precision Render**: `ffmpeg` utilizes date-specific globs to ensure 24-hour cycle integrity.
+* **Forensic Purge**: Source frames are deleted ONLY if the render exit code is `0` and ONLY for the targeted `T-1` datestamp.
+
+### 🔄 Resilience Logic
+The Ingest Nodes utilize **Exponential Backoff** with jitter to handle NOAA/NASA server lag, significantly reducing false-positive alerts during solar events or high network latency.
+
+---
+
 > 📢 Disclaimer
 
 This tool is an independent implementation and is not affiliated with or endorsed by NOAA or the US Department of Commerce. All data is sourced from public domain NASA, NOAA or USGS assets.
 
-## ⚖️ 7. License
+## ⚖️ 8. License
 
 Copyright © 2026 ParkCircus Productions. Distributed under the MIT License.

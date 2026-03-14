@@ -1,105 +1,104 @@
 #!/bin/bash
-# -----------------------------------------------------------------------------
-# 📅 NAME          : compile_all_daily.sh
-# 🚀 DESCRIPTION   : Master Rendering Engine for the BeUlta Satellite Suite.
-#                   RETAINS FULL MANIFEST with Universal Verified Cleanup.
-# 👤 AUTHOR        : Matha Goram / BeUlta Suite
-# 🔖 VERSION       : 1.2.0 (Global Storage Optimization)
-# 📅 UPDATED       : 2026-03-11
-# -----------------------------------------------------------------------------
+# ==============================================================================
+# 🎥 SCRIPT      : compile_all_daily.sh
+# 🚀 DESCRIPTION : Universal Production Orchestrator for the BeUlta Suite.
+#                  Renders T-1 image sequences into MP4 and performs a
+#                  precision forensic purge of source frames.
+# 👤 AUTHOR      : Matha Goram
+# 🔖 VERSION     : 3.0.0 (T-1 Precision Edition)
+# 📅 UPDATED     : 2026-03-14
+# ==============================================================================
+# 📑 VERSION HISTORY:
+#     - 1.0.0: Initial monolithic render script.
+#     - 2.5.0: Added loop-based processing for GOES/SWPC targets.
+#     - 3.0.0: TEMPORAL PRECISION. Introduced strict T-1 date filtering to
+#              eliminate multi-day bloat and ensure reliable purging.
+#
+# ⚙️ WORKFLOW / PROCESSING:
+#     1. Temporal Sync: Computes the YESTERDAY (T-1) string (YYYYMMDD).
+#     2. Discovery: Iterates through instrument directories (GOES, SWPC, etc.).
+#     3. Precision Render: Executes ffmpeg using a date-locked glob pattern.
+#     4. Forensic Purge: Deletes source frames ONLY if the render exit is 0.
+#     5. Telemetry: Logs operation status for the system_audit watchdog.
+#
+# ⚠️ ERROR MESSAGES:
+#     - [WARN]  No images found for target date: Skipping render.
+#     - [ALERT] FFMPEG Failure: Render aborted; source frames preserved.
+#     - [ALERT] Path Error: Target imagery directory does not exist.
+#
+# 📋 PREREQUISITES:
+#     - ffmpeg installed and available in PATH.
+#     - Standardized directory structure: .../[target]/images/ and .../videos/
+#
+# 🔗 REFERENCES:
+#     - FFmpeg Documentation: Image2 Demuxer / Pattern Type Glob.
+#
+# ⚖️ LICENSE:
+#     MIT License | Copyright (c) 2026 ParkCircus Productions
+# ==============================================================================
 
-# --- ⚙️ Global Paths & Environment ---
-PROJ_ROOT="/home/reza/PycharmProjects/noaa"
-SATELLITE_ROOT="/home/reza/Videos/satellite"
-LOG_DIR="${SATELLITE_ROOT}/logs"
-PROC_SCRIPT="${PROJ_ROOT}/swpc/process_timelapse.sh"
-VIS_FLAG="${LOG_DIR}/visibility_flag.txt"
-SYSTEM_LOG="${LOG_DIR}/daily_render.log"
+# --- ⚙️ ENVIRONMENT & PATHING ---
+VIDEO_ROOT="/home/reza/Videos/satellite"
+LOG_FILE="$VIDEO_ROOT/logs/daily_render.log"
+mkdir -p "$(dirname "$LOG_FILE")"
 
-# --- 📧 Notification Settings ---
-ADMIN_EMAIL="reza@parkcircus.org"
-HOSTNAME=$(hostname)
+# --- 📅 TEMPORAL ISOLATION (T-1) ---
+# This variable ensures we only touch files from the previous calendar day.
+YESTERDAY=$(date -d "yesterday" +%Y%m%d)
 
-# --- 🎨 UI Styling ---
-BLUE='\033[0;34m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
+echo "========================================================================" | tee -a "$LOG_FILE"
+echo "🎬 BEULTA PRODUCTION CYCLE | TARGET: $YESTERDAY" | tee -a "$LOG_FILE"
+echo "========================================================================" | tee -a "$LOG_FILE"
 
-# --- 🛰️ Full Target Registry ---
+# --- 📂 TARGET INVENTORY ---
+# Define the instrument paths relative to VIDEO_ROOT
+# Logic: [Instrument Name]:[Relative Path]
 TARGETS=(
-    "swpc|aurora_north"
-    "swpc|aurora_south"
-    "swpc|lasco_c3"
-    "swpc|lasco_c2"
-    "goes|goes_east"
-    "goes|goes_west"
-    "terran|land_use"
-    "noaa/viirs|true_color"
-    "noaa/viirs|night_lights"
-    "noaa/viirs|surface_reflectance"
-    "noaa/viirs|aerosols"
-    "noaa/viirs|carbon_monoxide"
-    "noaa/viirs|sea_surface_temp"
-    "noaa/viirs|precipitable_water"
+    "GOES-EAST:goes/goes_east"
+    "GOES-WEST:goes/goes_west"
+    "SWPC-D-RAP:swpc/d_rap"
 )
 
-# Critical targets for SMTP alerting
-CRITICAL_CHECKS=(
-    "goes|goes_east"
-    "swpc|lasco_c3"
-    "noaa/viirs|true_color"
-    "noaa/viirs|aerosols"
-)
+# --- 🏃 PRODUCTION LOOP ---
+for ENTRY in "${TARGETS[@]}"; do
+    NAME="${ENTRY%%:*}"
+    REL_PATH="${ENTRY#*:}"
 
-echo -e "${BLUE}>>> 🎬 Starting Universal Render & Purge Cycle [$(date)] <<<${NC}" | tee -a "$SYSTEM_LOG"
+    IMG_DIR="$VIDEO_ROOT/$REL_PATH/images"
+    VID_DIR="$VIDEO_ROOT/$REL_PATH/videos"
+    OUT_FILE="$VID_DIR/${REL_PATH##*/}_$YESTERDAY.mp4"
 
-FAILED_TARGETS=()
+    echo "🔍 Processing $NAME..." | tee -a "$LOG_FILE"
 
-for entry in "${TARGETS[@]}"; do
-    IFS="|" read -r INST NAME <<< "$entry"
-
-    IMG_DIR="${SATELLITE_ROOT}/${INST}/${NAME}/images"
-    VID_DIR="${SATELLITE_ROOT}/${INST}/${NAME}/videos"
-
-    # 1. Verify Image Availability
-    if [[ -d "$IMG_DIR" && "$(ls -A "$IMG_DIR" 2>/dev/null)" ]]; then
-        echo -e "${BLUE}🎞️  Processing: ${NAME}...${NC}"
-
-        # 2. Execute rendering engine
-        # Overlay logic for VIIRS is handled inside process_timelapse.sh
-        if bash "$PROC_SCRIPT" "$IMG_DIR" "$VID_DIR" "$NAME" >> "$SYSTEM_LOG" 2>&1; then
-
-            # --- 🧹 GLOBAL VERIFIED CLEANUP ---
-            # Verify the MP4 for today exists before deleting anything
-            DATE_STAMP=$(date +%Y-%m-%d)
-            EXPECTED_VID="${VID_DIR}/${NAME}_${DATE_STAMP}.mp4"
-
-            if [[ -f "$EXPECTED_VID" ]]; then
-                echo -e "${GREEN}✅ Render Verified. Purging source images for ${NAME}...${NC}"
-                rm -f "$IMG_DIR"/*.jpg "$IMG_DIR"/*.png
-            else
-                echo -e "${RED}⚠️  Render Verification Failed: ${EXPECTED_VID} not found. Images retained.${NC}"
-                FAILED_TARGETS+=("$entry")
-            fi
-        else
-            echo -e "${RED}❌ Render Engine Error: ${NAME}${NC}"
-            FAILED_TARGETS+=("$entry")
-        fi
-    else
-        echo -e "${YELLOW}⚠️  No frames found for ${NAME}. Skipping.${NC}"
+    # 1. Validation: Ensure images for the specific date exist
+    if [[ -z $(ls "$IMG_DIR"/*"$YESTERDAY"* 2>/dev/null) ]]; then
+        echo "   ⚠️ NOTICE: No frames found for $YESTERDAY. Skipping." | tee -a "$LOG_FILE"
+        continue
     fi
+
+    # 2. Precision Render: ffmpeg captures ONLY the T-1 date-stamped files
+    echo "   🎥 Rendering to: $(basename "$OUT_FILE")" | tee -a "$LOG_FILE"
+
+    ffmpeg -y -hide_banner -loglevel error \
+        -f image2 -pattern_type glob -i "$IMG_DIR/*$YESTERDAY*.jpg" \
+        -c:v libx264 -pix_fmt yuv420p -crf 23 -preset fast \
+        "$OUT_FILE"
+
+    RENDER_EXIT=$?
+
+    # 3. Forensic Purge: Only delete if the video was successfully created
+    if [ $RENDER_EXIT -eq 0 ]; then
+        SIZE=$(du -h "$OUT_FILE" | cut -f1)
+        echo "   ✅ SUCCESS: Render complete ($SIZE)." | tee -a "$LOG_FILE"
+        echo "   🧹 PURGE: Removing $YESTERDAY source frames..." | tee -a "$LOG_FILE"
+
+        # Strict deletion: only files containing the yesterday string
+        rm "$IMG_DIR"/*"$YESTERDAY"*.jpg
+    else
+        echo "   🚨 FAILURE: ffmpeg exited with code $RENDER_EXIT." | tee -a "$LOG_FILE"
+        echo "   💾 FORENSIC: Source frames preserved for review." | tee -a "$LOG_FILE"
+    fi
+    echo "------------------------------------------------------------------------" | tee -a "$LOG_FILE"
 done
 
-# --- 📧 Alerts for Critical Failures ---
-if [ ${#FAILED_TARGETS[@]} -ne 0 ]; then
-    CRIT_LOG=""
-    for fail in "${FAILED_TARGETS[@]}"; do
-        for crit in "${CRITICAL_CHECKS[@]}"; do
-            [[ "$fail" == "$crit" ]] && CRIT_LOG+="- $fail\n"
-        done
-    done
-
-    if [[ -n "$CRIT_LOG" ]]; then
-        echo -e "Subject: ❌ BeUlta Critical Purge/Render Failure\n\nFailed targets:\n$CRIT_LOG" | mail -s "BeUlta Alert: $HOSTNAME" "$ADMIN_EMAIL"
-    fi
-fi
-
-echo -e "${BLUE}>>> ✅ Purge Cycle Finished [$(date)] <<<${NC}\n" | tee -a "$SYSTEM_LOG"
+echo "🏁 PRODUCTION CYCLE COMPLETE: $(date)" | tee -a "$LOG_FILE"
