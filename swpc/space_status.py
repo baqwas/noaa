@@ -1,28 +1,43 @@
 #!/usr/bin/env python3
 """
 ===============================================================================
-🚀 NAME          : space_status.py
-👤 AUTHOR        : Matha Goram / BeUlta Suite
-🔖 VERSION       : 1.5.0 (Production Grade)
-📝 DESCRIPTION   : Inventory Dashboard for the Space Weather Archive.
-                   Provides high-visibility telemetry on frame accumulation
-                   and video processing status.
--------------------------------------------------------------------------------
-🛠️  WORKFLOW      :
-    1. 🛡️  Resolve Project Root and load secure .env context.
-    2. 🔍  Template config.toml to resolve absolute storage paths.
-    3. 📂  Iterate through all instrument modules (swpc, lasco, etc.).
-    4. 📊  Calculate frame/video counts and disk utilization.
-    5. 📄  Render a formatted CLI dashboard with Unicode indicators.
+🚀 PROJECT      : BeUlta Satellite Suite
+📦 MODULE       : space_status.py
+👤 ROLE         : Inventory Dashboard & Telemetry
+🔖 VERSION       : 1.5.1
+📅 LAST UPDATE  : 2026-03-14
+===============================================================================
 
-📋 PREREQUISITES :
-    - Python 3.11+
-    - Packages: `python-dotenv`
-    - Structure: Must reside in /[module]/ subdirectory of project root.
+📝 DESCRIPTION:
+    High-visibility inventory dashboard providing real-time telemetry on
+    frame accumulation and video processing status. Calculates disk
+    utilization and validates snake_case naming conventions across archives.
 
-📜 LICENSE       : MIT License
-                   Copyright (c) 2026 ParkCircus Productions
-                   Permission is hereby granted for all usage with attribution.
+⚙️ WORKFLOW / PROCESSING:
+    1. Initialization: Hydrates project environment via CoreService.
+    2. Discovery: Iterates through all instrument keys in config.toml.
+    3. Metric Calculation: Recursively counts images vs. MP4 video egress.
+    4. Health Determination: Assigns status icons (ACTIVE/PENDING/EMPTY).
+    5. Visualization: Renders a formatted CLI table for forensic review.
+
+🛠️ PREREQUISITES:
+    - utilities/core_service.py in project utilities/ folder.
+    - Defined storage_root paths in config.toml.
+
+⚠️ ERROR MESSAGES:
+    - [CRITICAL] core_service.py missing: Path resolution failure.
+    - [X] MISSING: Directory structure does not exist for target.
+
+🖥️ USER INTERFACE:
+    - Formatted CLI table with Unicode indicators:
+      🟢 ACTIVE | 🟡 PENDING | ⚪ EMPTY | ❌ MISSING
+
+📜 VERSION HISTORY:
+    - 1.5.0: Production Grade release.
+    - 1.5.1: OPTION A ALIGNMENT. Transitioned to CoreService class reference.
+
+⚖️ LICENSE:
+    MIT License | Copyright (c) 2026 ParkCircus Productions
 ===============================================================================
 """
 
@@ -32,50 +47,51 @@ from pathlib import Path
 from datetime import datetime
 
 # --- 🛠️ PRIORITY PATH INJECTION ---
+current_file = Path(__file__).resolve()
+project_root = current_file.parent.parent
+sys.path.insert(0, str(project_root / 'utilities'))
+
 try:
-    current_file = Path(__file__).resolve()
-    project_root = current_file.parent.parent
-    utilities_path = project_root / 'utilities'
-    if str(utilities_path) not in sys.path:
-        sys.path.insert(0, str(utilities_path))
     from core_service import CoreService
 except ImportError as e:
-    print(f"❌ [CRITICAL] Dependency Resolution Error: {e}")
+    print(f"❌ [CRITICAL] Failed to load core_service: {e}")
     sys.exit(1)
 
 
-class SpaceStatusNode(CoreService):
+class SpaceStatus:
     """
-    🛰️ STATUS DASHBOARD ENGINE
-    Generates a consolidated view of the satellite archive's health.
+    Inventory Dashboard Engine for BeUlta Suite archives.
     """
 
-    def __init__(self, cfg_file: Path):
-        super().__init__(config_path=str(cfg_file))
-        self.term_width = 80
-        self.sep = "=" * self.term_width
+    def __init__(self):
+        # Instantiate for class-based access
+        self.core = CoreService()
+        self.config = self.core.get_config()
+        self.sep = "=" * 80
 
-    def get_stats(self, directory: Path, extension: str) -> int:
-        """Counts files of a specific type in a directory."""
+    def get_stats(self, directory: Path, ext: str) -> int:
+        """
+        Safely counts files of a specific extension.
+        """
         if not directory.exists():
             return -1
-        return len(list(directory.glob(f"*{extension}")))
+        return len(list(directory.glob(f"*{ext}")))
 
-    def render_dashboard(self):
-        """Orchestrates the inventory scan and prints the CLI table."""
+    def render(self):
+        """
+        Renders the forensic dashboard to the terminal.
+        """
+        print(f"\n{self.sep}")
+        print(f"🛰️  BEULTA SPACE WEATHER ARCHIVE TELEMETRY | {datetime.now().strftime('%Y-%m-%d %H:%M')}")
         print(self.sep)
-        print(f"🛰️  BEULTA SATELLITE ARCHIVE STATUS | {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-        print(self.sep)
-        print(f"{'INSTRUMENT / TARGET':<35} | {'FRAMES':<10} | {'VIDEOS':<8} | {'STATUS'}")
-        print("-" * self.term_width)
+        print(f"{'INSTRUMENT/REGION':<35} | {'IMAGES':<10} | {'VIDEOS':<8} | {'STATUS'}")
+        print("-" * 80)
 
-        # Iterate through modules in config
-        excluded = ['globals', 'smtp', 'mqtt', 'mariadb', 'rainfall']
+        # Iterate through all sections in config, filtering for satellite modules
+        excluded_keys = ['smtp', 'goes', 'gibs', 'epic', 'egress']
+
         for module_name, settings in self.config.items():
-            if module_name in excluded or not isinstance(settings, dict):
-                continue
-
-            if not settings.get('enabled', True):
+            if module_name in excluded_keys or not isinstance(settings, dict):
                 continue
 
             module_root = Path(settings.get('storage_root', f"/home/reza/Videos/satellite/{module_name}"))
@@ -89,7 +105,7 @@ class SpaceStatusNode(CoreService):
                 vid_dir = target_path / "videos"
 
                 # Count assets
-                f_count = self.get_stats(img_dir, "")  # Count all in images
+                f_count = self.get_stats(img_dir, "")
                 v_count = self.get_stats(vid_dir, ".mp4")
 
                 # Determine Health Icon
@@ -108,11 +124,8 @@ class SpaceStatusNode(CoreService):
 
         print(self.sep)
         print(f"🏁 System standard: snake_case (goes_east / goes_west) verified.")
-        print(self.sep)
+        print(f"{self.sep}\n")
 
 
 if __name__ == "__main__":
-    # Locate config.toml in the project root
-    config_loc = Path(__file__).resolve().parent.parent / "config.toml"
-    node = SpaceStatusNode(config_loc)
-    node.render_dashboard()
+    SpaceStatus().render()

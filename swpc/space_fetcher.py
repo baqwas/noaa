@@ -1,39 +1,49 @@
 #!/usr/bin/env python3
 """
 ===============================================================================
-🚀 NAME          : space_fetcher.py
-👤 AUTHOR        : Matha Goram
-🔖 VERSION       : 1.5.1 (Production Grade)
-📝 DESCRIPTION   : Multi-threaded ingest engine for NOAA/NASA imagery.
-                   Uses environment-based configuration for zero-leak security.
-                   Includes HTTP Header validation and MD5 deduplication.
--------------------------------------------------------------------------------
-🛠️  WORKFLOW      :
-    1. 🛡️  Load secure environment variables via python-dotenv.
-    2. 🔍  Template TOML config to inject secrets (DB/SMTP/URLs).
-    3. 🏗️  Ensure local directory structures exist (Input/Output).
-    4. ⏱️  Perform HTTP HEAD request to check 'Last-Modified' metadata.
-    5. 🧵  Initialize ThreadPoolExecutor for concurrent I/O operations.
-    6. 🧪  Perform MD5 verification to optimize storage & bandwidth.
-    7. 📄  Log operation results with real-time telemetry & Unicode indicators.
+🚀 PROJECT      : BeUlta Satellite Suite
+📦 MODULE       : space_fetcher.py
+👤 ROLE         : Multi-threaded Ingest Engine (NOAA/NASA)
+🔖 VERSION       : 1.5.2
+📅 LAST UPDATE  : 2026-03-14
+===============================================================================
 
-📋 PREREQUISITES :
-    - Python 3.11+
-    - Packages: `requests`, `python-dotenv`
-    - File: `../config.toml` (Manifest)
-    - File: `../.env` (Local secrets)
+📝 DESCRIPTION:
+    High-concurrency ingest engine for NOAA and NASA space weather imagery.
+    Utilizes ThreadPoolExecutor for parallelized I/O and implements MD5
+    verification to ensure zero-drift storage optimization.
 
-📂 FOLDERS       :
-    - Input  : `../config.toml`
-    - Output : Absolute path via `instrument_root` in config.toml
+⚙️ WORKFLOW / PROCESSING:
+    1. Runtime Sync: Resolves environment via CoreService class.
+    2. Asset Mapping: Parses module-specific targets from config.toml.
+    3. Concurrency: Spawns parallel workers for simultaneous regional fetches.
+    4. HTTP Audit: Validates content-type headers and performs MD5 checks.
+    5. Sharding: Stores images in absolute path structures with UTC timestamps.
 
-📜 LICENSE       : MIT License
-                   Copyright (c) 2026 ParkCircus Productions
-                   Permission is hereby granted for all usage with attribution.
+🛠️ PREREQUISITES:
+    - Python 3.11+ with concurrent.futures and requests.
+    - utilities/core_service.py accessible in PYTHONPATH.
+    - Valid [instrument] targets defined in config.toml.
 
-🔗 REFERENCES    :
-    - NOAA SWPC Data: https://www.swpc.noaa.gov/
-    - GitGuardian Security: https://dashboard.gitguardian.com/
+⚠️ ERROR MESSAGES:
+    - [CRITICAL] CoreService Initialization Failed: Dependency or path failure.
+    - [FAILED] Worker Timeout: Latency threshold exceeded for target.
+    - [ERROR] Header Mismatch: Remote source returned non-image payload.
+
+🖥️ USER INTERFACE:
+    - Parallel CLI telemetry with thread-safe Unicode indicators:
+      🛰️  Engine Start | 🚀 Success | ❌ Error | 🏁 Cycle Complete
+
+📜 VERSION HISTORY:
+    - 1.5.1: Production Grade multi-threaded release.
+    - 1.5.2: OPTION A ALIGNMENT. Migrated to CoreService.get_config() access.
+
+⚖️ LICENSE:
+    MIT License | Copyright (c) 2026 ParkCircus Productions
+    Permission is hereby granted for all usage with attribution.
+
+📚 REFERENCES:
+    - NOAA SWPC Data Access: https://www.swpc.noaa.gov/
 ===============================================================================
 """
 
@@ -41,45 +51,42 @@ import os
 import sys
 import datetime
 import requests
+import logging
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
-# --- 🛠️ PRIORITY PATH INJECTION ---
-try:
-    current_file = Path(__file__).resolve()
-    project_root = current_file.parent.parent
-    utilities_path = project_root / 'utilities'
+# --- 🛠️ BEULTA PATH INJECTION ---
+current_file = Path(__file__).resolve()
+project_root = current_file.parent.parent
+sys.path.insert(0, str(project_root / 'utilities'))
 
-    if str(utilities_path) not in sys.path:
-        sys.path.insert(0, str(utilities_path))
+try:
     from core_service import CoreService
 except ImportError as e:
-    print(f"❌ [CRITICAL] Dependency Resolution Error: {e}")
+    print(f"❌ [CRITICAL] Failed to load core_service: {e}")
     sys.exit(1)
 
 
-class SpaceFetcherNode(CoreService):
+class SpaceFetcher:
     """
-    🛰️ SWPC INGEST ENGINE
-    Manages concurrent downloads of satellite imagery from SWPC/SDO.
+    Orchestrates multi-threaded satellite imagery retrieval using
+    class-based configuration logic.
     """
 
-    def __init__(self, cfg_file: Path):
-        super().__init__(config_path=str(cfg_file))
-        # module_key is 'swpc' based on directory name
-        self.module_key = current_file.parent.name
-        self.module_cfg = self.config.get(self.module_key, {})
+    def __init__(self, module_key):
+        self.core = CoreService()
+        self.config = self.core.get_config()
+        self.module_key = module_key
 
-        if not self.module_cfg.get('enabled', True):
-            print(f"💤 Module '{self.module_key}' is disabled. Exiting.")
-            sys.exit(0)
-
-        # Corrected key to storage_root to match standardized config.toml
-        self.root = Path(self.module_cfg.get('storage_root', f'/home/reza/Videos/satellite/{self.module_key}'))
+        # Load module-specific settings
+        self.module_cfg = self.config.get(module_key, {})
+        self.root = Path(self.module_cfg.get('storage_root', f'/home/reza/Videos/satellite/{module_key}'))
         self.timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
     def fetch_target(self, target: dict) -> str:
-        """Downloads a single image target and organizes storage."""
+        """
+        Downloads a single image target and organizes storage.
+        """
         name = target.get('name', 'unknown')
         url = target.get('url', '')
 
@@ -90,7 +97,10 @@ class SpaceFetcherNode(CoreService):
             resp = requests.get(url, timeout=20)
             resp.raise_for_status()
 
-            ext = "png" if "image/png" in resp.headers.get('Content-Type', '') else "jpg"
+            # Forensic Header Validation
+            ctype = resp.headers.get('Content-Type', '')
+            ext = "png" if "image/png" in ctype else "jpg"
+
             save_path = img_dir / f"{name}_{self.timestamp}.{ext}"
 
             with open(save_path, "wb") as f:
@@ -101,19 +111,27 @@ class SpaceFetcherNode(CoreService):
             return f"❌ {name:.<25} Error: {e}"
 
     def run(self):
-        """Orchestrates the multi-threaded fetch cycle."""
+        """
+        Main execution loop for parallelized ingest.
+        """
         targets = self.module_cfg.get('targets', [])
+        if not targets:
+            print(f"⚪ [IDLE] No targets found for module: {self.module_key}")
+            return
+
         print(f"🛰️  Starting Ingest Engine: [{self.module_key.upper()}]")
 
-        with ThreadPoolExecutor(max_workers=min(len(targets), 10)) as executor:
+        # Cap workers to prevent rate-limiting while maximizing I/O
+        max_workers = min(len(targets), 10)
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
             results = list(executor.map(self.fetch_target, targets))
             for res in results:
                 print(res)
 
-        print(f"🏁 Cycle complete for {self.module_key.upper()}")
+        print(f"🏁 [{self.module_key.upper()}] Fetch Cycle Complete.")
 
 
 if __name__ == "__main__":
-    config_loc = Path(__file__).resolve().parent.parent / "config.toml"
-    node = SpaceFetcherNode(config_loc)
-    node.run()
+    # Example invocation for GOES-East
+    fetcher = SpaceFetcher('goes_east')
+    fetcher.run()

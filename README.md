@@ -112,7 +112,7 @@ nano swpc/config.toml
 ---
 > 📢 Disclaimer
 
-This tool is an independent implementation and is not affiliated with or endorsed by NOAA or the US Department of Commerce. All data is sourced from public domain NOAA assets.
+This tool is an independent implementation and is not affiliated with or endorsed by NOAA or the US Department of Commerce. All data is sourced from public domain NASA, NOAA or USGS assets.
 
 ## ⚖️ 7. License
 

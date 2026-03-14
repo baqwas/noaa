@@ -1,60 +1,48 @@
 #!/bin/bash
 # ==============================================================================
 # 🐕 SCRIPT      : system_audit.sh
-# 🚀 DESCRIPTION : Professional Shell Wrapper for the BeUlta Suite Watchdog.
-#                  Orchestrates validation of SWPC, Terran, and GOES health.
-#                  Now features Forensic Logging to support "Good News" tracking.
-# 👤 AUTHOR      : Matha Goram
-# 🔖 VERSION     : 1.6.0
-# 📅 UPDATED     : 2026-03-11
-# ⚖️ LICENSE     : MIT License (c) 2026 ParkCircus Productions
-# ==============================================================================
-# 📑 VERSION HISTORY:
-#     - 1.5.1: Initial Production Grade release.
-#     - 1.6.0: FORENSIC UPDATE. Added centralized logging for audit results
-#              and "Heartbeat" output capture for SWPC/Terran visibility.
+# 🚀 DESCRIPTION : Master Forensic Orchestrator for the BeUlta Suite.
+# 🔖 VERSION     : 1.9.0 (Watchdog Integration)
+# 📅 UPDATED     : 2026-03-14
 # ==============================================================================
 
 # --- ⚙️ ENVIRONMENT & PATHING ---
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 VENV_PATH="$PROJECT_ROOT/.venv"
+PYTHON_BIN="$VENV_PATH/bin/python"
+REPORT_LOG="/tmp/beulta_full_audit.log"
+EMAIL_RECIPIENT="reza@parkcircus.org"
 
-# --- 📁 LOGGING CONFIGURATION ---
-# We store the audit history in the SWPC root for easy admin access
-LOG_DIR="/home/reza/Videos/satellite/swpc/logs"
-LOG_FILE="$LOG_DIR/system_audit.log"
-mkdir -p "$LOG_DIR"
-
-# --- 🏃 EXECUTION ---
 {
-    echo "===================================================="
-    echo "ℹ️  Initiating BeUlta Suite Forensic Audit..."
-    echo "--- Session Start: $(date) ---"
+    echo "========================================================================"
+    echo "🛰️  BEULTA MASTER FORENSIC TRACE | $(date '+%Y-%m-%d %H:%M:%S')"
+    echo "========================================================================"
+    echo "🏠 HOSTNAME   : $(hostname)"
+    echo "📜 SOURCE     : system_audit.sh"
+    echo "========================================================================"
 
-    # 1. Activate Virtual Environment
-    if [ -d "$VENV_PATH" ]; then
-        source "$VENV_PATH/bin/activate"
-        echo "📅 Environment: .venv Active"
-    else
-        echo "⚠️  Environment: System Default (VENV NOT FOUND)"
+    # 1. Video Egress Audit
+    echo -e "\n🔍 STEP 1: OUTPUT VALIDATION & PERFORMANCE METRICS"
+    $PYTHON_BIN "$SCRIPT_DIR/system_audit.py"
+
+    # 2. Archive Inventory
+    echo -e "\n📊 STEP 2: ARCHIVE INVENTORY"
+    if [ -f "$PROJECT_ROOT/gibs/space_status.py" ]; then
+        $PYTHON_BIN "$PROJECT_ROOT/gibs/space_status.py"
     fi
 
-    # 2. Execute the Python Audit Engine
-    # We pass the root to ensure it finds the master config.toml
-    python3 "$SCRIPT_DIR/system_audit.py"
-
-    AUDIT_EXIT=$?
-
-    # 3. Handle Exit States
-    if [ $AUDIT_EXIT -eq 0 ]; then
-        echo "--- Session End: All Systems Humming ---"
+    # 3. Universal Storage Watchdog (The Cleanup Check)
+    echo -e "\n🧹 STEP 3: STORAGE CLEANUP AUDIT (Watchdog)"
+    if [ -f "$PROJECT_ROOT/utilities/universal_watchdog.py" ]; then
+        $PYTHON_BIN "$PROJECT_ROOT/utilities/universal_watchdog.py"
     else
-        echo "--- Session End: Finished with Critical Alerts ---"
+        echo "⚠️  [NOTICE] universal_watchdog.py not found. Skipping cleanup audit."
     fi
-    echo -e "====================================================\n"
 
-} | tee -a "$LOG_FILE"
+} > "$REPORT_LOG" 2>&1
 
-# The 'tee -a' command ensures the output goes to BOTH your terminal
-# (if running manually) and the persistent log file for the suite.
+# --- 📧 TELEMETRY DISPATCH ---
+sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[mGK]//g" "$REPORT_LOG" > "${REPORT_LOG}.clean"
+mail -s "✨ BeUlta: Full System Audit [$(hostname)]" "$EMAIL_RECIPIENT" < "${REPORT_LOG}.clean"
+rm "$REPORT_LOG" "${REPORT_LOG}.clean"
